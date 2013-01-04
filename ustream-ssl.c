@@ -182,12 +182,8 @@ static void ustream_ssl_stream_init(struct ustream_ssl *us)
 
 static void *_ustream_ssl_context_new(bool server)
 {
-#ifdef CYASSL_OPENSSL_H_
-	SSL_METHOD *m;
-#else
-	const SSL_METHOD *m;
-#endif
 	SSL_CTX *c;
+	const void *m;
 
 	ssl_init();
 
@@ -203,7 +199,7 @@ static void *_ustream_ssl_context_new(bool server)
 		m = TLSv1_client_method();
 #endif
 
-	c = SSL_CTX_new(m);
+	c = SSL_CTX_new((void *) m);
 	if (!c)
 		return NULL;
 
