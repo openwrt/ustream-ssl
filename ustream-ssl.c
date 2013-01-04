@@ -221,7 +221,10 @@ static int _ustream_ssl_context_set_crt_file(void *ctx, const char *file)
 	if (ret < 1)
 		ret = SSL_CTX_use_certificate_file(ctx, file, SSL_FILETYPE_ASN1);
 
-	return ret;
+	if (ret < 1)
+		return -1;
+
+	return 0;
 }
 
 static int _ustream_ssl_context_set_key_file(void *ctx, const char *file)
@@ -232,7 +235,10 @@ static int _ustream_ssl_context_set_key_file(void *ctx, const char *file)
 	if (ret < 1)
 		ret = SSL_CTX_use_PrivateKey_file(ctx, file, SSL_FILETYPE_ASN1);
 
-	return ret;
+	if (ret < 1)
+		return -1;
+
+	return 0;
 }
 
 static void _ustream_ssl_context_free(void *ctx)
