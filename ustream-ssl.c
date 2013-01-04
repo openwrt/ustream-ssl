@@ -180,7 +180,7 @@ static void ustream_ssl_stream_init(struct ustream_ssl *us)
 	ustream_init_defaults(s);
 }
 
-void *ustream_ssl_context_new(bool server)
+static void *_ustream_ssl_context_new(bool server)
 {
 #ifdef CYASSL_OPENSSL_H_
 	SSL_METHOD *m;
@@ -213,7 +213,7 @@ void *ustream_ssl_context_new(bool server)
 	return c;
 }
 
-int ustream_ssl_context_set_crt_file(void *ctx, const char *file)
+static int _ustream_ssl_context_set_crt_file(void *ctx, const char *file)
 {
 	int ret;
 
@@ -224,7 +224,7 @@ int ustream_ssl_context_set_crt_file(void *ctx, const char *file)
 	return ret;
 }
 
-int ustream_ssl_context_set_key_file(void *ctx, const char *file)
+static int _ustream_ssl_context_set_key_file(void *ctx, const char *file)
 {
 	int ret;
 
@@ -235,12 +235,12 @@ int ustream_ssl_context_set_key_file(void *ctx, const char *file)
 	return ret;
 }
 
-void ustream_ssl_context_free(void *ctx)
+static void _ustream_ssl_context_free(void *ctx)
 {
 	SSL_CTX_free(ctx);
 }
 
-int ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, void *ctx, bool server)
+static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, void *ctx, bool server)
 {
 	us->error_timer.cb = ustream_ssl_error_cb;
 	us->server = server;
@@ -257,3 +257,11 @@ int ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, void *ctx, bo
 
 	return 0;
 }
+
+const struct ustream_ssl_ops ustream_ssl_ops = {
+	.context_new = _ustream_ssl_context_new,
+	.context_set_crt_file = _ustream_ssl_context_set_crt_file,
+	.context_set_key_file = _ustream_ssl_context_set_key_file,
+	.context_free = _ustream_ssl_context_free,
+	.init = _ustream_ssl_init,
+};

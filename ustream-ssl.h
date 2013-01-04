@@ -17,11 +17,21 @@ struct ustream_ssl {
 	bool server;
 };
 
-void *ustream_ssl_context_new(bool server);
-int ustream_ssl_context_set_crt_file(void *ctx, const char *file);
-int ustream_ssl_context_set_key_file(void *ctx, const char *file);
-void ustream_ssl_context_free(void *ctx);
+struct ustream_ssl_ops {
+	void *(*context_new)(bool server);
+	int (*context_set_crt_file)(void *ctx, const char *file);
+	int (*context_set_key_file)(void *ctx, const char *file);
+	void (*context_free)(void *ctx);
 
-int ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, void *ctx, bool server);
+	int (*init)(struct ustream_ssl *us, struct ustream *conn, void *ctx, bool server);
+};
+
+extern const struct ustream_ssl_ops ustream_ssl_ops;
+
+#define ustream_ssl_context_new			ustream_ssl_ops.context_new
+#define ustream_ssl_context_set_crt_file	ustream_ssl_ops.context_set_crt_file
+#define ustream_ssl_context_set_key_file	ustream_ssl_ops.context_set_key_file
+#define ustream_ssl_context_free		ustream_ssl_ops.context_free
+#define ustream_ssl_init			ustream_ssl_ops.init
 
 #endif
