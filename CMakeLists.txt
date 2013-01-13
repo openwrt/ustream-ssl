@@ -5,8 +5,6 @@ ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -g3 -Wmissing-declarations)
 
 SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
-#INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/include/cyassl)
-#LINK_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/lib)
 IF(APPLE)
   INCLUDE_DIRECTORIES(/opt/local/include)
   LINK_DIRECTORIES(/opt/local/lib)
