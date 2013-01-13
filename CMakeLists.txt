@@ -11,7 +11,7 @@ IF(APPLE)
 ENDIF()
 
 IF (CYASSL)
-  SET(SSL_LIB cyassl)
+  SET(SSL_LIB cyassl m)
 ELSE()
   SET(SSL_LIB crypto ssl)
 ENDIF()
