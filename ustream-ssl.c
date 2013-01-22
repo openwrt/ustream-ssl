@@ -80,21 +80,22 @@ static void ustream_ssl_check_conn(struct ustream_ssl *us)
 	ustream_ssl_error(us, ret);
 }
 
-static void ustream_ssl_notify_read(struct ustream *s, int bytes)
+static bool __ustream_ssl_poll(struct ustream *s)
 {
 	struct ustream_ssl *us = container_of(s->next, struct ustream_ssl, stream);
 	char *buf;
-	int wr = 0, len, ret;
+	int len, ret;
+	bool more = false;
 
 	ustream_ssl_check_conn(us);
 	if (!us->connected || us->error)
-		return;
-
-	buf = ustream_reserve(&us->stream, 1, &len);
-	if (!len)
-		return;
+		return false;
 
 	do {
+		buf = ustream_reserve(&us->stream, 1, &len);
+		if (!len)
+			break;
+
 		ret = SSL_read(us->ssl, buf, len);
 		if (ret < 0) {
 			ret = SSL_get_error(us->ssl, ret);
@@ -111,13 +112,16 @@ static void ustream_ssl_notify_read(struct ustream *s, int bytes)
 			break;
 		}
 
-		buf += ret;
-		len -= ret;
-		wr += ret;
+		ustream_fill_read(&us->stream, ret);
+		more = true;
 	} while (1);
 
-	if (wr)
-		ustream_fill_read(&us->stream, wr);
+	return more;
+}
+
+static void ustream_ssl_notify_read(struct ustream *s, int bytes)
+{
+	__ustream_ssl_poll(s);
 }
 
 static void ustream_ssl_notify_write(struct ustream *s, int bytes)
@@ -186,8 +190,10 @@ static void ustream_ssl_free(struct ustream *s)
 static bool ustream_ssl_poll(struct ustream *s)
 {
 	struct ustream_ssl *us = container_of(s, struct ustream_ssl, stream);
+	bool fd_poll;
 
-	return ustream_poll(us->conn);
+	fd_poll = ustream_poll(us->conn);
+	return __ustream_ssl_poll(s) || fd_poll;
 }
 
 static void ustream_ssl_stream_init(struct ustream_ssl *us)
