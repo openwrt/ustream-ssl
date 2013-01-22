@@ -183,6 +183,13 @@ static void ustream_ssl_free(struct ustream *s)
 	us->error = false;
 }
 
+static bool ustream_ssl_poll(struct ustream *s)
+{
+	struct ustream_ssl *us = container_of(s, struct ustream_ssl, stream);
+
+	return ustream_poll(us->conn);
+}
+
 static void ustream_ssl_stream_init(struct ustream_ssl *us)
 {
 	struct ustream *conn = us->conn;
@@ -194,6 +201,7 @@ static void ustream_ssl_stream_init(struct ustream_ssl *us)
 
 	s->free = ustream_ssl_free;
 	s->write = ustream_ssl_write;
+	s->poll = ustream_ssl_poll;
 	s->set_read_blocked = ustream_ssl_set_read_blocked;
 	ustream_init_defaults(s);
 }
