@@ -22,8 +22,6 @@ TARGET_LINK_LIBRARIES(ustream-ssl ubox ${SSL_LIB})
 ADD_EXECUTABLE(ustream-example ustream-example.c)
 TARGET_LINK_LIBRARIES(ustream-example ustream-ssl)
 
-SET(CMAKE_INSTALL_PREFIX /usr)
-
 FILE(GLOB headers *.h)
 INSTALL(FILES ${headers}
 	DESTINATION include/libubox
