@@ -16,30 +16,29 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-#ifndef __USTREAM_BIO_H
-#define __USTREAM_BIO_H
+#ifndef __USTREAM_POLARSSL_H
+#define __USTREAM_POLARSSL_H
 
-#define __hidden __attribute__((visibility("hidden")))
+#include <polarssl/net.h>
+#include <polarssl/ssl.h>
+#include <polarssl/certs.h>
+#include <polarssl/x509.h>
+#include <polarssl/rsa.h>
+#include <polarssl/error.h>
 
-#ifdef HAVE_POLARSSL
-#include "ustream-polarssl.h"
-#else
-#include "ustream-openssl.h"
-#endif
-
-enum ssl_conn_status {
-	U_SSL_OK = 0,
-	U_SSL_PENDING = -1,
-	U_SSL_ERROR = -2,
+struct ustream_polarssl_ctx {
+	x509_cert cert;
+	rsa_context key;
+	bool server;
 };
 
-void ustream_set_io(void *ctx, void *ssl, struct ustream *s);
-void *__ustream_ssl_context_new(bool server);
-int __ustream_ssl_set_crt_file(void *ctx, const char *file);
-int __ustream_ssl_set_key_file(void *ctx, const char *file);
-void __ustream_ssl_context_free(void *ctx);
-enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us);
-int __ustream_ssl_read(struct ustream_ssl *us, char *buf, int len);
-int __ustream_ssl_write(struct ustream_ssl *us, const char *buf, int len);
+static inline char *__ustream_ssl_strerror(int error, char *buffer, int len)
+{
+	error_strerror(error, buffer, len);
+	return buffer;
+}
+
+void __ustream_ssl_session_free(void *ssl);
+void *__ustream_ssl_session_new(void *ctx);
 
 #endif
