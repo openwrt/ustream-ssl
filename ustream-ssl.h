@@ -19,6 +19,8 @@
 #ifndef __USTREAM_SSL_H
 #define __USTREAM_SSL_H
 
+#include <libubox/ustream.h>
+
 struct ustream_ssl {
 	struct ustream stream;
 	struct ustream *conn;

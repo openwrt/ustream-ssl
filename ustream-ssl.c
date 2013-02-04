@@ -17,26 +17,10 @@
  */
 
 #include <errno.h>
-
-#include <openssl/ssl.h>
-#include <openssl/err.h>
-
 #include <libubox/ustream.h>
-#include "ustream-io.h"
+
 #include "ustream-ssl.h"
-
-static void ssl_init(void)
-{
-	static bool _init = false;
-
-	if (_init)
-		return;
-
-	SSL_load_error_strings();
-	SSL_library_init();
-
-	_init = true;
-}
+#include "ustream-internal.h"
 
 static void ustream_ssl_error_cb(struct uloop_timeout *t)
 {
@@ -45,39 +29,19 @@ static void ustream_ssl_error_cb(struct uloop_timeout *t)
 	int error = us->error;
 
 	if (us->notify_error)
-		us->notify_error(us, error, ERR_error_string(us->error, buffer));
-}
-
-static void ustream_ssl_error(struct ustream_ssl *us, int error)
-{
-	us->error = error;
-	uloop_timeout_set(&us->error_timer, 0);
+		us->notify_error(us, error, __ustream_ssl_strerror(us->error, buffer, sizeof(buffer)));
 }
 
 static void ustream_ssl_check_conn(struct ustream_ssl *us)
 {
-	int ret;
-
 	if (us->connected || us->error)
 		return;
 
-	if (us->server)
-		ret = SSL_accept(us->ssl);
-	else
-		ret = SSL_connect(us->ssl);
-
-	if (ret == 1) {
+	if (__ustream_ssl_connect(us) == U_SSL_OK) {
 		us->connected = true;
 		if (us->notify_connected)
 			us->notify_connected(us);
-		return;
 	}
-
-	ret = SSL_get_error(us->ssl, ret);
-	if (ret == SSL_ERROR_WANT_READ || ret == SSL_ERROR_WANT_WRITE)
-		return;
-
-	ustream_ssl_error(us, ret);
 }
 
 static bool __ustream_ssl_poll(struct ustream *s)
@@ -96,24 +60,21 @@ static bool __ustream_ssl_poll(struct ustream *s)
 		if (!len)
 			break;
 
-		ret = SSL_read(us->ssl, buf, len);
-		if (ret < 0) {
-			ret = SSL_get_error(us->ssl, ret);
-
-			if (ret == SSL_ERROR_WANT_READ)
-				break;
-
-			ustream_ssl_error(us, ret);
-			break;
-		}
-		if (ret == 0) {
+		ret = __ustream_ssl_read(us, buf, len);
+		switch (ret) {
+		case U_SSL_PENDING:
+			return more;
+		case U_SSL_ERROR:
+			return false;
+		case 0:
 			us->stream.eof = true;
 			ustream_state_change(&us->stream);
-			break;
+			return false;
+		default:
+			ustream_fill_read(&us->stream, ret);
+			more = true;
+			continue;
 		}
-
-		ustream_fill_read(&us->stream, ret);
-		more = true;
 	} while (1);
 
 	return more;
@@ -141,7 +102,6 @@ static void ustream_ssl_notify_state(struct ustream *s)
 static int ustream_ssl_write(struct ustream *s, const char *buf, int len, bool more)
 {
 	struct ustream_ssl *us = container_of(s, struct ustream_ssl, stream);
-	int ret;
 
 	if (!us->connected || us->error)
 		return 0;
@@ -149,14 +109,7 @@ static int ustream_ssl_write(struct ustream *s, const char *buf, int len, bool m
 	if (us->conn->w.data_bytes)
 		return 0;
 
-	ret = SSL_write(us->ssl, buf, len);
-	if (ret < 0) {
-		int err = SSL_get_error(us->ssl, ret);
-		if (err == SSL_ERROR_WANT_WRITE)
-			return 0;
-	}
-
-	return ret;
+	return __ustream_ssl_write(us, buf, len);
 }
 
 static void ustream_ssl_set_read_blocked(struct ustream *s)
@@ -178,8 +131,7 @@ static void ustream_ssl_free(struct ustream *s)
 	}
 
 	uloop_timeout_cancel(&us->error_timer);
-	SSL_shutdown(us->ssl);
-	SSL_free(us->ssl);
+	__ustream_ssl_session_free(us->ssl);
 	us->ctx = NULL;
 	us->ssl = NULL;
 	us->conn = NULL;
@@ -212,68 +164,6 @@ static void ustream_ssl_stream_init(struct ustream_ssl *us)
 	ustream_init_defaults(s);
 }
 
-static void *_ustream_ssl_context_new(bool server)
-{
-	SSL_CTX *c;
-	const void *m;
-
-	ssl_init();
-
-#ifdef CYASSL_OPENSSL_H_
-	if (server)
-		m = SSLv23_server_method();
-	else
-		m = SSLv23_client_method();
-#else
-	if (server)
-		m = TLSv1_server_method();
-	else
-		m = TLSv1_client_method();
-#endif
-
-	c = SSL_CTX_new((void *) m);
-	if (!c)
-		return NULL;
-
-	if (server)
-		SSL_CTX_set_verify(c, SSL_VERIFY_NONE, NULL);
-
-	return c;
-}
-
-static int _ustream_ssl_context_set_crt_file(void *ctx, const char *file)
-{
-	int ret;
-
-	ret = SSL_CTX_use_certificate_file(ctx, file, SSL_FILETYPE_PEM);
-	if (ret < 1)
-		ret = SSL_CTX_use_certificate_file(ctx, file, SSL_FILETYPE_ASN1);
-
-	if (ret < 1)
-		return -1;
-
-	return 0;
-}
-
-static int _ustream_ssl_context_set_key_file(void *ctx, const char *file)
-{
-	int ret;
-
-	ret = SSL_CTX_use_PrivateKey_file(ctx, file, SSL_FILETYPE_PEM);
-	if (ret < 1)
-		ret = SSL_CTX_use_PrivateKey_file(ctx, file, SSL_FILETYPE_ASN1);
-
-	if (ret < 1)
-		return -1;
-
-	return 0;
-}
-
-static void _ustream_ssl_context_free(void *ctx)
-{
-	SSL_CTX_free(ctx);
-}
-
 static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, void *ctx, bool server)
 {
 	us->error_timer.cb = ustream_ssl_error_cb;
@@ -281,7 +171,7 @@ static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, void 
 	us->conn = conn;
 	us->ctx = ctx;
 
-	us->ssl = SSL_new(us->ctx);
+	us->ssl = __ustream_ssl_session_new(us->ctx);
 	if (!us->ssl)
 		return -ENOMEM;
 
@@ -293,9 +183,9 @@ static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, void 
 }
 
 const struct ustream_ssl_ops ustream_ssl_ops = {
-	.context_new = _ustream_ssl_context_new,
-	.context_set_crt_file = _ustream_ssl_context_set_crt_file,
-	.context_set_key_file = _ustream_ssl_context_set_key_file,
-	.context_free = _ustream_ssl_context_free,
+	.context_new = __ustream_ssl_context_new,
+	.context_set_crt_file = __ustream_ssl_set_crt_file,
+	.context_set_key_file = __ustream_ssl_set_key_file,
+	.context_free = __ustream_ssl_context_free,
 	.init = _ustream_ssl_init,
 };

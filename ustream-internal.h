@@ -19,11 +19,23 @@
 #ifndef __USTREAM_BIO_H
 #define __USTREAM_BIO_H
 
-#include <openssl/ssl.h>
-#include <openssl/err.h>
+#define __hidden __attribute__((visibility("hidden")))
 
-#include "ustream-ssl.h"
+#include "ustream-openssl.h"
 
-void ustream_set_io(SSL_CTX *ctx, SSL *ssl, struct ustream *s);
+enum ssl_conn_status {
+	U_SSL_OK = 0,
+	U_SSL_PENDING = -1,
+	U_SSL_ERROR = -2,
+};
+
+void ustream_set_io(void *ctx, void *ssl, struct ustream *s);
+void *__ustream_ssl_context_new(bool server);
+int __ustream_ssl_set_crt_file(void *ctx, const char *file);
+int __ustream_ssl_set_key_file(void *ctx, const char *file);
+void __ustream_ssl_context_free(void *ctx);
+enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us);
+int __ustream_ssl_read(struct ustream_ssl *us, char *buf, int len);
+int __ustream_ssl_write(struct ustream_ssl *us, const char *buf, int len);
 
 #endif
