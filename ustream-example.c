@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <signal.h>
 
 #include <libubox/ustream.h>
 #include <libubox/uloop.h>
@@ -199,6 +200,7 @@ int main(int argc, char **argv)
 {
 	int ch;
 
+	signal(SIGPIPE, SIG_IGN);
 	ctx = ustream_ssl_context_new(true);
 	ustream_ssl_context_set_crt_file(ctx, "example.crt");
 	ustream_ssl_context_set_key_file(ctx, "example.key");
