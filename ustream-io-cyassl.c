@@ -58,6 +58,9 @@ static int s_ustream_write(char *buf, int len, void *ctx)
 {
 	struct ustream *s = ctx;
 
+	if (s->write_error)
+		return len;
+
 	return ustream_write(s, buf, len, false);
 }
 

@@ -88,6 +88,9 @@ s_ustream_write(BIO *b, const char *buf, int len)
 	if (!s)
 		return 0;
 
+	if (s->write_error)
+		return len;
+
 	return ustream_write(s, buf, len, false);
 }
 
