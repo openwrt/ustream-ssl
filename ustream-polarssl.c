@@ -192,6 +192,48 @@ __hidden int __ustream_ssl_read(struct ustream_ssl *us, char *buf, int len)
 	return ret;
 }
 
+static const int default_ciphersuites[] =
+{
+#if defined(POLARSSL_AES_C)
+#if defined(POLARSSL_SHA2_C)
+    TLS_RSA_WITH_AES_256_CBC_SHA256,
+#endif /* POLARSSL_SHA2_C */
+#if defined(POLARSSL_GCM_C) && defined(POLARSSL_SHA4_C)
+    TLS_RSA_WITH_AES_256_GCM_SHA384,
+#endif /* POLARSSL_SHA2_C */
+    TLS_RSA_WITH_AES_256_CBC_SHA,
+#endif
+#if defined(POLARSSL_CAMELLIA_C)
+#if defined(POLARSSL_SHA2_C)
+    TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256,
+#endif /* POLARSSL_SHA2_C */
+    TLS_RSA_WITH_CAMELLIA_256_CBC_SHA,
+#endif
+#if defined(POLARSSL_AES_C)
+#if defined(POLARSSL_SHA2_C)
+    TLS_RSA_WITH_AES_128_CBC_SHA256,
+#endif /* POLARSSL_SHA2_C */
+#if defined(POLARSSL_GCM_C) && defined(POLARSSL_SHA2_C)
+    TLS_RSA_WITH_AES_128_GCM_SHA256,
+#endif /* POLARSSL_SHA2_C */
+    TLS_RSA_WITH_AES_128_CBC_SHA,
+#endif
+#if defined(POLARSSL_CAMELLIA_C)
+#if defined(POLARSSL_SHA2_C)
+    TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256,
+#endif /* POLARSSL_SHA2_C */
+    TLS_RSA_WITH_CAMELLIA_128_CBC_SHA,
+#endif
+#if defined(POLARSSL_DES_C)
+    TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+#endif
+#if defined(POLARSSL_ARC4_C)
+    TLS_RSA_WITH_RC4_128_SHA,
+    TLS_RSA_WITH_RC4_128_MD5,
+#endif
+    0
+};
+
 __hidden void *__ustream_ssl_session_new(void *ctx)
 {
 	struct ustream_polarssl_ctx *uctx = ctx;
@@ -215,6 +257,7 @@ __hidden void *__ustream_ssl_session_new(void *ctx)
 		auth = SSL_VERIFY_OPTIONAL;
 	}
 
+	ssl_set_ciphersuites(ssl, default_ciphersuites);
 	ssl_set_endpoint(ssl, ep);
 	ssl_set_authmode(ssl, auth);
 	ssl_set_rng(ssl, _urandom, NULL);
