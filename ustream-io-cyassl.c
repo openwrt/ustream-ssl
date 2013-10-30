@@ -23,14 +23,11 @@
 #include "ustream-ssl.h"
 #include "ustream-internal.h"
 
-/* not defined in the header file */
-typedef int (*CallbackIORecv)(char *buf, int sz, void *ctx);
-typedef int (*CallbackIOSend)(char *buf, int sz, void *ctx);
-
-void SetCallbackIORecv_Ctx(SSL_CTX*, CallbackIORecv);
-void SetCallbackIOSend_Ctx(SSL_CTX*, CallbackIOSend);
-void SetCallbackIO_ReadCtx(SSL* ssl, void *rctx);
-void SetCallbackIO_WriteCtx(SSL* ssl, void *wctx);
+#ifdef HAVE_CYASSL_VERSION_H
+#include <cyassl/version.h>
+#else
+#define LIBCYASSL_VERSION_HEX 0
+#endif
 
 static int s_ustream_read(char *buf, int len, void *ctx)
 {
@@ -64,10 +61,46 @@ static int s_ustream_write(char *buf, int len, void *ctx)
 	return ustream_write(s, buf, len, false);
 }
 
+#if (LIBCYASSL_VERSION_HEX > 0)
+static int io_recv_cb(SSL* ssl, char *buf, int sz, void *ctx)
+{
+	return s_ustream_read(buf, sz, ctx);
+}
+
+static int io_send_cb(SSL* ssl, char *buf, int sz, void *ctx)
+{
+	return s_ustream_write(buf, sz, ctx);
+}
+#else
+/* not defined in the header file */
+typedef int (*CallbackIORecv)(char *buf, int sz, void *ctx);
+typedef int (*CallbackIOSend)(char *buf, int sz, void *ctx);
+
+void SetCallbackIORecv_Ctx(SSL_CTX*, CallbackIORecv);
+void SetCallbackIOSend_Ctx(SSL_CTX*, CallbackIOSend);
+void SetCallbackIO_ReadCtx(SSL* ssl, void *rctx);
+void SetCallbackIO_WriteCtx(SSL* ssl, void *wctx);
+
+#define CyaSSL_SetIOReadCtx SetCallbackIO_ReadCtx
+#define CyaSSL_SetIOWriteCtx SetCallbackIO_WriteCtx
+#define CyaSSL_SetIORecv SetCallbackIORecv_Ctx
+#define CyaSSL_SetIOSend SetCallbackIOSend_Ctx
+
+static int io_recv_cb(char *buf, int sz, void *ctx)
+{
+	return s_ustream_read(buf, sz, ctx);
+}
+
+static int io_send_cb(char *buf, int sz, void *ctx)
+{
+	return s_ustream_write(buf, sz, ctx);
+}
+#endif
+
 __hidden void ustream_set_io(void *ctx, void *ssl, struct ustream *conn)
 {
-	SetCallbackIO_ReadCtx(ssl, conn);
-	SetCallbackIO_WriteCtx(ssl, conn);
-	SetCallbackIORecv_Ctx(ctx, s_ustream_read);
-	SetCallbackIOSend_Ctx(ctx, s_ustream_write);
+	CyaSSL_SetIOReadCtx(ssl, conn);
+	CyaSSL_SetIOWriteCtx(ssl, conn);
+	CyaSSL_SetIORecv(ctx, io_recv_cb);
+	CyaSSL_SetIOSend(ctx, io_send_cb);
 }

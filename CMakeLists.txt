@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 
+INCLUDE(CheckIncludeFiles)
+
 PROJECT(ustream-ssl C)
 ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -g3 -Wmissing-declarations)
 
@@ -15,6 +17,11 @@ IF(POLARSSL)
   SET(SSL_SRC ustream-polarssl.c)
   SET(SSL_LIB polarssl m)
 ELSEIF(CYASSL)
+  CHECK_INCLUDE_FILES (cyassl/version.h HAVE_CYASSL_VERSION_H)
+  SET(CMAKE_EXTRA_INCLUDE_FILES cyassl/ssl.h)
+  IF (HAVE_CYASSL_VERSION_H)
+    ADD_DEFINITIONS(-DHAVE_CYASSL_VERSION_H)
+  ENDIF()
   SET(SSL_SRC ustream-io-cyassl.c ustream-openssl.c)
   SET(SSL_LIB cyassl m)
 ELSE()
