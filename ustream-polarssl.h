@@ -25,10 +25,21 @@
 #include <polarssl/x509.h>
 #include <polarssl/rsa.h>
 #include <polarssl/error.h>
+#include <polarssl/version.h>
+
+#if POLARSSL_VERSION_MAJOR > 1 || POLARSSL_VERSION_MINOR >= 3
+#define USE_VERSION_1_3
+#else
+#define x509_crt x509_cert
+#endif
 
 struct ustream_polarssl_ctx {
-	x509_cert cert;
+#ifdef USE_VERSION_1_3
+	pk_context key;
+#else
 	rsa_context key;
+#endif
+	x509_crt cert;
 	bool server;
 };
 

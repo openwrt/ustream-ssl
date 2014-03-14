@@ -94,7 +94,11 @@ __hidden void * __ustream_ssl_context_new(bool server)
 		return NULL;
 
 	uctx->server = server;
+#ifdef USE_VERSION_1_3
+	pk_init(&uctx->key);
+#else
 	rsa_init(&uctx->key, RSA_PKCS_V15, 0);
+#endif
 
 	return uctx;
 }
@@ -102,8 +106,14 @@ __hidden void * __ustream_ssl_context_new(bool server)
 __hidden int __ustream_ssl_set_crt_file(void *ctx, const char *file)
 {
 	struct ustream_polarssl_ctx *uctx = ctx;
+	int ret;
 
-	if (x509parse_crtfile(&uctx->cert, file))
+#ifdef USE_VERSION_1_3
+	ret = x509_crt_parse_file(&uctx->cert, file);
+#else
+	ret = x509parse_crtfile(&uctx->cert, file);
+#endif
+	if (ret)
 		return -1;
 
 	return 0;
@@ -112,8 +122,14 @@ __hidden int __ustream_ssl_set_crt_file(void *ctx, const char *file)
 __hidden int __ustream_ssl_set_key_file(void *ctx, const char *file)
 {
 	struct ustream_polarssl_ctx *uctx = ctx;
+	int ret;
 
-	if (x509parse_keyfile(&uctx->key, file, NULL))
+#ifdef USE_VERSION_1_3
+	ret = pk_parse_keyfile(&uctx->key, file, NULL);
+#else
+	ret = x509parse_keyfile(&uctx->key, file, NULL);
+#endif
+	if (ret)
 		return -1;
 
 	return 0;
@@ -123,8 +139,13 @@ __hidden void __ustream_ssl_context_free(void *ctx)
 {
 	struct ustream_polarssl_ctx *uctx = ctx;
 
+#ifdef USE_VERSION_1_3
+	pk_free(&uctx->key);
+	x509_crt_free(&uctx->cert);
+#else
 	rsa_free(&uctx->key);
 	x509_free(&uctx->cert);
+#endif
 	free(ctx);
 }
 
