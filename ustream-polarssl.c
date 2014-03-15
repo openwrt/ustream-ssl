@@ -51,12 +51,13 @@ static int s_ustream_read(void *ctx, unsigned char *buf, size_t len)
 static int s_ustream_write(void *ctx, const unsigned char *buf, size_t len)
 {
 	struct ustream *s = ctx;
+	int ret;
 
-	len = ustream_write(s, (const char *) buf, len, false);
-	if (len < 0 || s->write_error)
+	ret = ustream_write(s, (const char *) buf, len, false);
+	if (ret < 0 || s->write_error)
 		return POLARSSL_ERR_NET_SEND_FAILED;
 
-	return len;
+	return ret;
 }
 
 __hidden void ustream_set_io(void *ctx, void *ssl, struct ustream *conn)
