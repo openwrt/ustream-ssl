@@ -32,8 +32,8 @@ ENDIF()
 ADD_LIBRARY(ustream-ssl SHARED ustream-ssl.c ${SSL_SRC})
 TARGET_LINK_LIBRARIES(ustream-ssl ubox ${SSL_LIB})
 
-ADD_EXECUTABLE(ustream-example ustream-example.c)
-TARGET_LINK_LIBRARIES(ustream-example ustream-ssl)
+ADD_EXECUTABLE(ustream-example-server ustream-example-server.c)
+TARGET_LINK_LIBRARIES(ustream-example-server ustream-ssl)
 
 INSTALL(FILES ustream-ssl.h
 	DESTINATION include/libubox
