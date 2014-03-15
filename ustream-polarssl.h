@@ -40,6 +40,7 @@ struct ustream_ssl_ctx {
 	rsa_context key;
 #endif
 	x509_crt cert;
+	int auth;
 	bool server;
 };
 

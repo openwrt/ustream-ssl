@@ -95,6 +95,7 @@ __ustream_ssl_context_new(bool server)
 	if (!ctx)
 		return NULL;
 
+	ctx->auth = SSL_VERIFY_NONE;
 	ctx->server = server;
 #ifdef USE_VERSION_1_3
 	pk_init(&ctx->key);
@@ -116,6 +117,9 @@ __hidden int __ustream_ssl_set_crt_file(struct ustream_ssl_ctx *ctx, const char 
 #endif
 	if (ret)
 		return -1;
+
+	if (!ctx->server)
+		ctx->auth = SSL_VERIFY_OPTIONAL;
 
 	return 0;
 }
@@ -256,7 +260,7 @@ static const int default_ciphersuites[] =
 __hidden void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx)
 {
 	ssl_context *ssl;
-	int ep, auth;
+	int ep;
 
 	ssl = calloc(1, sizeof(ssl_context));
 	if (!ssl)
@@ -267,17 +271,14 @@ __hidden void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx)
 		return NULL;
 	}
 
-	if (ctx->server) {
+	if (ctx->server)
 		ep = SSL_IS_SERVER;
-		auth = SSL_VERIFY_NONE;
-	} else {
+	else
 		ep = SSL_IS_CLIENT;
-		auth = SSL_VERIFY_OPTIONAL;
-	}
 
 	ssl_set_ciphersuites(ssl, default_ciphersuites);
 	ssl_set_endpoint(ssl, ep);
-	ssl_set_authmode(ssl, auth);
+	ssl_set_authmode(ssl, ctx->auth);
 	ssl_set_rng(ssl, _urandom, NULL);
 
 	if (ctx->server) {
