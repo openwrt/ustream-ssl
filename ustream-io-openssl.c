@@ -138,7 +138,7 @@ static BIO *ustream_bio_new(struct ustream *s)
 	return bio;
 }
 
-__hidden void ustream_set_io(void *ctx, void *ssl, struct ustream *conn)
+__hidden void ustream_set_io(struct ustream_ssl_ctx *ctx, void *ssl, struct ustream *conn)
 {
 	BIO *bio = ustream_bio_new(conn);
 	SSL_set_bio(ssl, bio, bio);

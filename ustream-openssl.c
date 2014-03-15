@@ -19,7 +19,8 @@
 #include "ustream-ssl.h"
 #include "ustream-internal.h"
 
-__hidden void * __ustream_ssl_context_new(bool server)
+__hidden struct ustream_ssl_ctx *
+__ustream_ssl_context_new(bool server)
 {
 	static bool _init = false;
 	const void *m;
@@ -50,16 +51,16 @@ __hidden void * __ustream_ssl_context_new(bool server)
 	if (server)
 		SSL_CTX_set_verify(c, SSL_VERIFY_NONE, NULL);
 
-	return c;
+	return (void *) c;
 }
 
-__hidden int __ustream_ssl_set_crt_file(void *ctx, const char *file)
+__hidden int __ustream_ssl_set_crt_file(struct ustream_ssl_ctx *ctx, const char *file)
 {
 	int ret;
 
-	ret = SSL_CTX_use_certificate_file(ctx, file, SSL_FILETYPE_PEM);
+	ret = SSL_CTX_use_certificate_file((void *) ctx, file, SSL_FILETYPE_PEM);
 	if (ret < 1)
-		ret = SSL_CTX_use_certificate_file(ctx, file, SSL_FILETYPE_ASN1);
+		ret = SSL_CTX_use_certificate_file((void *) ctx, file, SSL_FILETYPE_ASN1);
 
 	if (ret < 1)
 		return -1;
@@ -67,13 +68,13 @@ __hidden int __ustream_ssl_set_crt_file(void *ctx, const char *file)
 	return 0;
 }
 
-__hidden int __ustream_ssl_set_key_file(void *ctx, const char *file)
+__hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char *file)
 {
 	int ret;
 
-	ret = SSL_CTX_use_PrivateKey_file(ctx, file, SSL_FILETYPE_PEM);
+	ret = SSL_CTX_use_PrivateKey_file((void *) ctx, file, SSL_FILETYPE_PEM);
 	if (ret < 1)
-		ret = SSL_CTX_use_PrivateKey_file(ctx, file, SSL_FILETYPE_ASN1);
+		ret = SSL_CTX_use_PrivateKey_file((void *) ctx, file, SSL_FILETYPE_ASN1);
 
 	if (ret < 1)
 		return -1;
@@ -81,9 +82,9 @@ __hidden int __ustream_ssl_set_key_file(void *ctx, const char *file)
 	return 0;
 }
 
-__hidden void __ustream_ssl_context_free(void *ctx)
+__hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 {
-	SSL_CTX_free(ctx);
+	SSL_CTX_free((void *) ctx);
 }
 
 static void ustream_ssl_error(struct ustream_ssl *us, int ret)

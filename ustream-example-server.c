@@ -31,7 +31,7 @@
 #include <libubox/usock.h>
 #include "ustream-ssl.h"
 
-static void *ctx;
+static struct ustream_ssl_ctx *ctx;
 
 static struct uloop_fd server;
 static const char *port = "10000";

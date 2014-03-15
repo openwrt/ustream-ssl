@@ -33,7 +33,7 @@
 #define x509_crt x509_cert
 #endif
 
-struct ustream_polarssl_ctx {
+struct ustream_ssl_ctx {
 #ifdef USE_VERSION_1_3
 	pk_context key;
 #else
@@ -50,6 +50,6 @@ static inline char *__ustream_ssl_strerror(int error, char *buffer, int len)
 }
 
 void __ustream_ssl_session_free(void *ssl);
-void *__ustream_ssl_session_new(void *ctx);
+void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx);
 
 #endif

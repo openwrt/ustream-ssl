@@ -29,7 +29,7 @@ struct ustream_ssl {
 	void (*notify_connected)(struct ustream_ssl *us);
 	void (*notify_error)(struct ustream_ssl *us, int error, const char *str);
 
-	void *ctx;
+	struct ustream_ssl_ctx *ctx;
 	void *ssl;
 
 	int error;
@@ -37,13 +37,16 @@ struct ustream_ssl {
 	bool server;
 };
 
-struct ustream_ssl_ops {
-	void *(*context_new)(bool server);
-	int (*context_set_crt_file)(void *ctx, const char *file);
-	int (*context_set_key_file)(void *ctx, const char *file);
-	void (*context_free)(void *ctx);
+struct ustream_ssl_ctx;
 
-	int (*init)(struct ustream_ssl *us, struct ustream *conn, void *ctx, bool server);
+struct ustream_ssl_ops {
+
+	struct ustream_ssl_ctx *(*context_new)(bool server);
+	int (*context_set_crt_file)(struct ustream_ssl_ctx *ctx, const char *file);
+	int (*context_set_key_file)(struct ustream_ssl_ctx *ctx, const char *file);
+	void (*context_free)(struct ustream_ssl_ctx *ctx);
+
+	int (*init)(struct ustream_ssl *us, struct ustream *conn, struct ustream_ssl_ctx *ctx, bool server);
 };
 
 extern const struct ustream_ssl_ops ustream_ssl_ops;

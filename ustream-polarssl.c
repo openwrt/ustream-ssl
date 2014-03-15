@@ -60,7 +60,7 @@ static int s_ustream_write(void *ctx, const unsigned char *buf, size_t len)
 	return ret;
 }
 
-__hidden void ustream_set_io(void *ctx, void *ssl, struct ustream *conn)
+__hidden void ustream_set_io(struct ustream_ssl_ctx *ctx, void *ssl, struct ustream *conn)
 {
 	ssl_set_bio(ssl, s_ustream_read, conn, s_ustream_write, conn);
 }
@@ -83,36 +83,36 @@ static int _urandom(void *ctx, unsigned char *out, size_t len)
 	return 0;
 }
 
-__hidden void * __ustream_ssl_context_new(bool server)
+__hidden struct ustream_ssl_ctx *
+__ustream_ssl_context_new(bool server)
 {
-	struct ustream_polarssl_ctx *uctx;
+	struct ustream_ssl_ctx *ctx;
 
 	if (!urandom_init())
 		return NULL;
 
-	uctx = calloc(1, sizeof(*uctx));
-	if (!uctx)
+	ctx = calloc(1, sizeof(*ctx));
+	if (!ctx)
 		return NULL;
 
-	uctx->server = server;
+	ctx->server = server;
 #ifdef USE_VERSION_1_3
-	pk_init(&uctx->key);
+	pk_init(&ctx->key);
 #else
-	rsa_init(&uctx->key, RSA_PKCS_V15, 0);
+	rsa_init(&ctx->key, RSA_PKCS_V15, 0);
 #endif
 
-	return uctx;
+	return ctx;
 }
 
-__hidden int __ustream_ssl_set_crt_file(void *ctx, const char *file)
+__hidden int __ustream_ssl_set_crt_file(struct ustream_ssl_ctx *ctx, const char *file)
 {
-	struct ustream_polarssl_ctx *uctx = ctx;
 	int ret;
 
 #ifdef USE_VERSION_1_3
-	ret = x509_crt_parse_file(&uctx->cert, file);
+	ret = x509_crt_parse_file(&ctx->cert, file);
 #else
-	ret = x509parse_crtfile(&uctx->cert, file);
+	ret = x509parse_crtfile(&ctx->cert, file);
 #endif
 	if (ret)
 		return -1;
@@ -120,15 +120,14 @@ __hidden int __ustream_ssl_set_crt_file(void *ctx, const char *file)
 	return 0;
 }
 
-__hidden int __ustream_ssl_set_key_file(void *ctx, const char *file)
+__hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char *file)
 {
-	struct ustream_polarssl_ctx *uctx = ctx;
 	int ret;
 
 #ifdef USE_VERSION_1_3
-	ret = pk_parse_keyfile(&uctx->key, file, NULL);
+	ret = pk_parse_keyfile(&ctx->key, file, NULL);
 #else
-	ret = x509parse_keyfile(&uctx->key, file, NULL);
+	ret = x509parse_keyfile(&ctx->key, file, NULL);
 #endif
 	if (ret)
 		return -1;
@@ -136,16 +135,14 @@ __hidden int __ustream_ssl_set_key_file(void *ctx, const char *file)
 	return 0;
 }
 
-__hidden void __ustream_ssl_context_free(void *ctx)
+__hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 {
-	struct ustream_polarssl_ctx *uctx = ctx;
-
 #ifdef USE_VERSION_1_3
-	pk_free(&uctx->key);
-	x509_crt_free(&uctx->cert);
+	pk_free(&ctx->key);
+	x509_crt_free(&ctx->cert);
 #else
-	rsa_free(&uctx->key);
-	x509_free(&uctx->cert);
+	rsa_free(&ctx->key);
+	x509_free(&ctx->cert);
 #endif
 	free(ctx);
 }
@@ -256,9 +253,8 @@ static const int default_ciphersuites[] =
     0
 };
 
-__hidden void *__ustream_ssl_session_new(void *ctx)
+__hidden void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx)
 {
-	struct ustream_polarssl_ctx *uctx = ctx;
 	ssl_context *ssl;
 	int ep, auth;
 
@@ -271,7 +267,7 @@ __hidden void *__ustream_ssl_session_new(void *ctx)
 		return NULL;
 	}
 
-	if (uctx->server) {
+	if (ctx->server) {
 		ep = SSL_IS_SERVER;
 		auth = SSL_VERIFY_NONE;
 	} else {
@@ -284,10 +280,10 @@ __hidden void *__ustream_ssl_session_new(void *ctx)
 	ssl_set_authmode(ssl, auth);
 	ssl_set_rng(ssl, _urandom, NULL);
 
-	if (uctx->server) {
-		if (uctx->cert.next)
-			ssl_set_ca_chain(ssl, uctx->cert.next, NULL, NULL);
-		ssl_set_own_cert(ssl, &uctx->cert, &uctx->key);
+	if (ctx->server) {
+		if (ctx->cert.next)
+			ssl_set_ca_chain(ssl, ctx->cert.next, NULL, NULL);
+		ssl_set_own_cert(ssl, &ctx->cert, &ctx->key);
 	}
 
 	ssl_session_reset(ssl);

@@ -164,7 +164,7 @@ static void ustream_ssl_stream_init(struct ustream_ssl *us)
 	ustream_init_defaults(s);
 }
 
-static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, void *ctx, bool server)
+static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, struct ustream_ssl_ctx *ctx, bool server)
 {
 	us->error_timer.cb = ustream_ssl_error_cb;
 	us->server = server;
