@@ -101,12 +101,10 @@ static void client_read_cb(struct ustream *s, int bytes)
 	}
 }
 
-static void client_close(struct ustream *s)
+static void client_close(struct client *cl)
 {
-	struct client *cl = container_of(s, struct client, ssl.stream);
-
 	fprintf(stderr, "Connection closed\n");
-	ustream_free(s);
+	ustream_free(&cl->ssl.stream);
 	ustream_free(&cl->s.stream);
 	close(cl->s.fd.fd);
 	free(cl);
@@ -131,7 +129,7 @@ static void client_notify_state(struct ustream *s)
 
 	fprintf(stderr, "eof!, pending: %d, total: %d\n", s->w.data_bytes, cl->ctr);
 	if (!s->w.data_bytes)
-		return client_close(s);
+		return client_close(cl);
 }
 
 static void client_notify_connected(struct ustream_ssl *ssl)
@@ -141,7 +139,10 @@ static void client_notify_connected(struct ustream_ssl *ssl)
 
 static void client_notify_error(struct ustream_ssl *ssl, int error, const char *str)
 {
+	struct client *cl = container_of(ssl, struct client, ssl);
+
 	fprintf(stderr, "SSL connection error(%d): %s\n", error, str);
+	client_close(cl);
 }
 
 static void server_cb(struct uloop_fd *fd, unsigned int events)
