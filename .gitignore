@@ -6,4 +6,5 @@ CMakeFiles
 *.so
 *.dylib
 install_manifest.txt
-*-example
+ustream-example-client
+ustream-example-server
