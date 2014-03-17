@@ -41,6 +41,7 @@ static void ustream_ssl_check_conn(struct ustream_ssl *us)
 		us->connected = true;
 		if (us->notify_connected)
 			us->notify_connected(us);
+		ustream_write_pending(&us->stream);
 	}
 }
 
