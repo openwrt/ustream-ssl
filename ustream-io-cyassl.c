@@ -97,10 +97,10 @@ static int io_send_cb(char *buf, int sz, void *ctx)
 }
 #endif
 
-__hidden void ustream_set_io(void *ctx, void *ssl, struct ustream *conn)
+__hidden void ustream_set_io(struct ustream_ssl_ctx *ctx, void *ssl, struct ustream *conn)
 {
 	CyaSSL_SetIOReadCtx(ssl, conn);
 	CyaSSL_SetIOWriteCtx(ssl, conn);
-	CyaSSL_SetIORecv(ctx, io_recv_cb);
-	CyaSSL_SetIOSend(ctx, io_send_cb);
+	CyaSSL_SetIORecv((void *) ctx, io_recv_cb);
+	CyaSSL_SetIOSend((void *) ctx, io_send_cb);
 }
