@@ -17,6 +17,7 @@
  */
 
 #include <errno.h>
+#include <stdlib.h>
 #include <libubox/ustream.h>
 
 #include "ustream-ssl.h"
@@ -133,11 +134,16 @@ static void ustream_ssl_free(struct ustream *s)
 
 	uloop_timeout_cancel(&us->error_timer);
 	__ustream_ssl_session_free(us->ssl);
+	free(us->peer_cn);
+
 	us->ctx = NULL;
 	us->ssl = NULL;
 	us->conn = NULL;
+	us->peer_cn = NULL;
 	us->connected = false;
 	us->error = false;
+	us->valid_cert = false;
+	us->valid_cn = false;
 }
 
 static bool ustream_ssl_poll(struct ustream *s)
@@ -184,10 +190,20 @@ static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, struc
 	return 0;
 }
 
+static int _ustream_ssl_set_peer_cn(struct ustream_ssl *us, const char *name)
+{
+	us->peer_cn = strdup(name);
+	__ustream_ssl_update_peer_cn(us);
+
+	return 0;
+}
+
 const struct ustream_ssl_ops ustream_ssl_ops = {
 	.context_new = __ustream_ssl_context_new,
 	.context_set_crt_file = __ustream_ssl_set_crt_file,
 	.context_set_key_file = __ustream_ssl_set_key_file,
+	.context_add_ca_crt_file = __ustream_ssl_add_ca_crt_file,
 	.context_free = __ustream_ssl_context_free,
 	.init = _ustream_ssl_init,
+	.set_peer_cn = _ustream_ssl_set_peer_cn,
 };

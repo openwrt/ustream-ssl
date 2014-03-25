@@ -39,4 +39,8 @@ static inline char *__ustream_ssl_strerror(int error, char *buffer, int len)
 	return ERR_error_string(error, buffer);
 }
 
+static inline void __ustream_ssl_update_peer_cn(struct ustream_ssl *us)
+{
+}
+
 #endif

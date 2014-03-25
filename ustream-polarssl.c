@@ -95,7 +95,6 @@ __ustream_ssl_context_new(bool server)
 	if (!ctx)
 		return NULL;
 
-	ctx->auth = SSL_VERIFY_NONE;
 	ctx->server = server;
 #ifdef USE_VERSION_1_3
 	pk_init(&ctx->key);
@@ -104,6 +103,21 @@ __ustream_ssl_context_new(bool server)
 #endif
 
 	return ctx;
+}
+
+__hidden int __ustream_ssl_add_ca_crt_file(struct ustream_ssl_ctx *ctx, const char *file)
+{
+	int ret;
+
+#ifdef USE_VERSION_1_3
+	ret = x509_crt_parse_file(&ctx->ca_cert, file);
+#else
+	ret = x509parse_crtfile(&ctx->ca_cert, file);
+#endif
+	if (ret)
+		return -1;
+
+	return 0;
 }
 
 __hidden int __ustream_ssl_set_crt_file(struct ustream_ssl_ctx *ctx, const char *file)
@@ -117,9 +131,6 @@ __hidden int __ustream_ssl_set_crt_file(struct ustream_ssl_ctx *ctx, const char 
 #endif
 	if (ret)
 		return -1;
-
-	if (!ctx->server)
-		ctx->auth = SSL_VERIFY_OPTIONAL;
 
 	return 0;
 }
@@ -168,14 +179,45 @@ static bool ssl_do_wait(int ret)
 	}
 }
 
+static void ustream_ssl_verify_cert(struct ustream_ssl *us)
+{
+	void *ssl = us->ssl;
+	const char *msg = NULL;
+	bool cn_mismatch;
+	int r;
+
+	r = ssl_get_verify_result(ssl);
+	cn_mismatch = r & BADCERT_CN_MISMATCH;
+	r &= ~BADCERT_CN_MISMATCH;
+
+	if (r & BADCERT_EXPIRED)
+		msg = "certificate has expired";
+	else if (r & BADCERT_REVOKED)
+		msg = "certificate has been revoked";
+	else if (r & BADCERT_NOT_TRUSTED)
+		msg = "certificate is self-signed or not signed by a trusted CA";
+	else
+		msg = "unknown error";
+
+	if (r) {
+		us->notify_verify_error(us, r, msg);
+		return;
+	}
+
+	if (!cn_mismatch)
+		us->valid_cn = true;
+}
+
 __hidden enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us)
 {
 	void *ssl = us->ssl;
 	int r;
 
 	r = ssl_handshake(ssl);
-	if (r == 0)
+	if (r == 0) {
+		ustream_ssl_verify_cert(us);
 		return U_SSL_OK;
+	}
 
 	if (ssl_do_wait(r))
 		return U_SSL_PENDING;
@@ -260,6 +302,7 @@ static const int default_ciphersuites[] =
 __hidden void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx)
 {
 	ssl_context *ssl;
+	int auth;
 	int ep;
 
 	ssl = calloc(1, sizeof(ssl_context));
@@ -271,20 +314,25 @@ __hidden void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx)
 		return NULL;
 	}
 
-	if (ctx->server)
+	if (ctx->server) {
 		ep = SSL_IS_SERVER;
-	else
+		auth = SSL_VERIFY_NONE;
+	} else {
 		ep = SSL_IS_CLIENT;
+		auth = SSL_VERIFY_OPTIONAL;
+	}
 
 	ssl_set_ciphersuites(ssl, default_ciphersuites);
 	ssl_set_endpoint(ssl, ep);
-	ssl_set_authmode(ssl, ctx->auth);
+	ssl_set_authmode(ssl, auth);
 	ssl_set_rng(ssl, _urandom, NULL);
 
 	if (ctx->server) {
 		if (ctx->cert.next)
 			ssl_set_ca_chain(ssl, ctx->cert.next, NULL, NULL);
 		ssl_set_own_cert(ssl, &ctx->cert, &ctx->key);
+	} else {
+		ssl_set_ca_chain(ssl, &ctx->cert, NULL, NULL);
 	}
 
 	ssl_session_reset(ssl);
@@ -296,4 +344,11 @@ __hidden void __ustream_ssl_session_free(void *ssl)
 {
 	ssl_free(ssl);
 	free(ssl);
+}
+
+__hidden void __ustream_ssl_update_peer_cn(struct ustream_ssl *us)
+{
+	struct ustream_ssl_ctx *ctx = us->ctx;
+
+	ssl_set_ca_chain(us->ssl, &ctx->ca_cert, NULL, us->peer_cn);
 }

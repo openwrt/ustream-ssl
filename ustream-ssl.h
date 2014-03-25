@@ -28,13 +28,19 @@ struct ustream_ssl {
 
 	void (*notify_connected)(struct ustream_ssl *us);
 	void (*notify_error)(struct ustream_ssl *us, int error, const char *str);
+	void (*notify_verify_error)(struct ustream_ssl *us, int error, const char *str);
 
 	struct ustream_ssl_ctx *ctx;
 	void *ssl;
 
+	char *peer_cn;
+
 	int error;
 	bool connected;
 	bool server;
+
+	bool valid_cert;
+	bool valid_cn;
 };
 
 struct ustream_ssl_ctx;
@@ -44,9 +50,11 @@ struct ustream_ssl_ops {
 	struct ustream_ssl_ctx *(*context_new)(bool server);
 	int (*context_set_crt_file)(struct ustream_ssl_ctx *ctx, const char *file);
 	int (*context_set_key_file)(struct ustream_ssl_ctx *ctx, const char *file);
+	int (*context_add_ca_crt_file)(struct ustream_ssl_ctx *ctx, const char *file);
 	void (*context_free)(struct ustream_ssl_ctx *ctx);
 
 	int (*init)(struct ustream_ssl *us, struct ustream *conn, struct ustream_ssl_ctx *ctx, bool server);
+	int (*set_peer_cn)(struct ustream_ssl *conn, const char *name);
 };
 
 extern const struct ustream_ssl_ops ustream_ssl_ops;
@@ -54,7 +62,9 @@ extern const struct ustream_ssl_ops ustream_ssl_ops;
 #define ustream_ssl_context_new			ustream_ssl_ops.context_new
 #define ustream_ssl_context_set_crt_file	ustream_ssl_ops.context_set_crt_file
 #define ustream_ssl_context_set_key_file	ustream_ssl_ops.context_set_key_file
+#define ustream_ssl_context_add_ca_crt_file	ustream_ssl_ops.context_add_ca_crt_file
 #define ustream_ssl_context_free		ustream_ssl_ops.context_free
 #define ustream_ssl_init			ustream_ssl_ops.init
+#define ustream_ssl_set_peer_cn			ustream_ssl_ops.set_peer_cn
 
 #endif

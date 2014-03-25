@@ -39,8 +39,8 @@ struct ustream_ssl_ctx {
 #else
 	rsa_context key;
 #endif
+	x509_crt ca_cert;
 	x509_crt cert;
-	int auth;
 	bool server;
 };
 
@@ -50,6 +50,7 @@ static inline char *__ustream_ssl_strerror(int error, char *buffer, int len)
 	return buffer;
 }
 
+void __ustream_ssl_update_peer_cn(struct ustream_ssl *us);
 void __ustream_ssl_session_free(void *ssl);
 void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx);
 
