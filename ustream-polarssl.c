@@ -200,7 +200,8 @@ static void ustream_ssl_verify_cert(struct ustream_ssl *us)
 		msg = "unknown error";
 
 	if (r) {
-		us->notify_verify_error(us, r, msg);
+		if (us->notify_verify_error)
+			us->notify_verify_error(us, r, msg);
 		return;
 	}
 
