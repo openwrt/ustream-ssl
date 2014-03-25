@@ -110,12 +110,17 @@ static void connect_client(void)
 
 static int usage(const char *progname)
 {
-	fprintf(stderr, "Usage: %s [options] <hostname> <port>\n", progname);
+	fprintf(stderr,
+		"Usage: %s [options] <hostname> <port>\n"
+		"Options:\n"
+		"	-c <cert>:         Load CA certificates from file <cert>\n"
+		"\n", progname);
 	return 1;
 }
 
 int main(int argc, char **argv)
 {
+	const char *progname = argv[0];
 	int ch;
 
 	ctx = ustream_ssl_context_new(false);
@@ -125,6 +130,8 @@ int main(int argc, char **argv)
 		case 'c':
 			ustream_ssl_context_add_ca_crt_file(ctx, optarg);
 			break;
+		default:
+			return usage(progname);
 		}
 	}
 
@@ -132,7 +139,7 @@ int main(int argc, char **argv)
 	argc -= optind;
 
 	if (argc != 2)
-		return usage(argv[0]);
+		return usage(progname);
 
 	uloop_init();
 	host = argv[0];
