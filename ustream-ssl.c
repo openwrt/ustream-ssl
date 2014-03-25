@@ -18,6 +18,7 @@
 
 #include <errno.h>
 #include <stdlib.h>
+#include <string.h>
 #include <libubox/ustream.h>
 
 #include "ustream-ssl.h"

@@ -16,6 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <string.h>
 #include <ctype.h>
 #include <openssl/x509v3.h>
 #include "ustream-ssl.h"
