@@ -160,6 +160,7 @@ static bool ustream_ssl_verify_cn_alt(struct ustream_ssl *us, X509 *cert)
 {
 	GENERAL_NAMES *alt_names;
 	int i, n_alt;
+	bool ret = false;
 
 	alt_names = X509_get_ext_d2i (cert, NID_subject_alt_name, NULL, NULL);
 	if (!alt_names)
@@ -175,11 +176,14 @@ static bool ustream_ssl_verify_cn_alt(struct ustream_ssl *us, X509 *cert)
 		if (name->type != GEN_DNS)
 			continue;
 
-		if (host_pattern_match_asn1(name->d.dNSName, us->peer_cn))
-			return true;
+		if (host_pattern_match_asn1(name->d.dNSName, us->peer_cn)) {
+			ret = true;
+			break;
+		}
 	}
 
-	return false;
+	sk_GENERAL_NAME_free(alt_names);
+	return ret;
 }
 
 static bool ustream_ssl_verify_cn(struct ustream_ssl *us, X509 *cert)
