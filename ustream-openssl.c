@@ -220,10 +220,6 @@ static void ustream_ssl_verify_cert(struct ustream_ssl *us)
 	X509 *cert;
 	int res;
 
-	cert = SSL_get_peer_certificate(ssl);
-	if (!cert)
-		return;
-
 	res = SSL_get_verify_result(ssl);
 	if (res != X509_V_OK) {
 		if (us->notify_verify_error)
@@ -231,8 +227,13 @@ static void ustream_ssl_verify_cert(struct ustream_ssl *us)
 		return;
 	}
 
+	cert = SSL_get_peer_certificate(ssl);
+	if (!cert)
+		return;
+
 	us->valid_cert = true;
 	us->valid_cn = ustream_ssl_verify_cn(us, cert);
+	X509_free(cert);
 }
 
 #endif
