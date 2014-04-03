@@ -52,6 +52,7 @@ __ustream_ssl_context_new(bool server)
 		return NULL;
 
 	SSL_CTX_set_verify(c, SSL_VERIFY_NONE, NULL);
+	SSL_CTX_set_quiet_shutdown(c, 1);
 
 	return (void *) c;
 }
