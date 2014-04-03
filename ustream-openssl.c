@@ -100,6 +100,12 @@ __hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 	SSL_CTX_free((void *) ctx);
 }
 
+void __ustream_ssl_session_free(void *ssl)
+{
+	SSL_shutdown(ssl);
+	SSL_free(ssl);
+}
+
 static void ustream_ssl_error(struct ustream_ssl *us, int ret)
 {
 	us->error = ret;

@@ -23,15 +23,11 @@
 #include <openssl/err.h>
 #include <stdbool.h>
 
+void __ustream_ssl_session_free(void *ssl);
+
 static inline void *__ustream_ssl_session_new(void *ctx)
 {
 	return SSL_new(ctx);
-}
-
-static inline void __ustream_ssl_session_free(void *ssl)
-{
-	SSL_shutdown(ssl);
-	SSL_free(ssl);
 }
 
 static inline char *__ustream_ssl_strerror(int error, char *buffer, int len)
