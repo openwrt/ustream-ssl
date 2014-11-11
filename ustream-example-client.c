@@ -46,6 +46,11 @@ static void client_ssl_notify_read(struct ustream *s, int bytes)
 	ustream_consume(s, len);
 }
 
+static void client_ssl_notify_write(struct ustream *s, int bytes)
+{
+	fprintf(stderr, "Wrote %d bytes, pending %d\n", bytes, s->w.data_bytes);
+}
+
 static void client_notify_connected(struct ustream_ssl *ssl)
 {
 	fprintf(stderr, "SSL connection established (CN verified: %d)\n", ssl->valid_cn);
@@ -81,6 +86,7 @@ static void example_connect_ssl(int fd)
 	ssl.notify_verify_error = client_notify_verify_error;
 	ssl.notify_connected = client_notify_connected;
 	ssl.stream.notify_read = client_ssl_notify_read;
+	ssl.stream.notify_write = client_ssl_notify_write;
 	ssl.stream.notify_state = client_notify_state;
 
 	ustream_fd_init(&stream, fd);
