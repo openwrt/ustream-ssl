@@ -121,7 +121,7 @@ static bool host_pattern_match(const unsigned char *pattern, const char *cn)
 
 	for (; (c = tolower(*pattern++)) != 0; cn++) {
 		if (c != '*') {
-			if (c != *cn)
+			if (c != tolower(*cn))
 				return false;
 			continue;
 		}
