@@ -153,7 +153,7 @@ static bool ustream_ssl_poll(struct ustream *s)
 	bool fd_poll;
 
 	fd_poll = ustream_poll(us->conn);
-	return __ustream_ssl_poll(s) || fd_poll;
+	return __ustream_ssl_poll(us->conn) || fd_poll;
 }
 
 static void ustream_ssl_stream_init(struct ustream_ssl *us)
