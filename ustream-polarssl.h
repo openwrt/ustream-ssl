@@ -50,6 +50,11 @@ static inline char *__ustream_ssl_strerror(int error, char *buffer, int len)
 	return buffer;
 }
 
+static inline void __ustream_ssl_set_server_name(struct ustream_ssl *us)
+{
+	ssl_set_hostname(us->ssl, us->server_name);
+}
+
 void __ustream_ssl_update_peer_cn(struct ustream_ssl *us);
 void __ustream_ssl_session_free(void *ssl);
 void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx);

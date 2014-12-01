@@ -186,6 +186,10 @@ static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, struc
 	conn->next = &us->stream;
 	ustream_set_io(ctx, us->ssl, conn);
 	ustream_ssl_stream_init(us);
+
+	if (us->server_name)
+		__ustream_ssl_set_server_name(us);
+
 	ustream_ssl_check_conn(us);
 
 	return 0;

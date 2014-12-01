@@ -39,4 +39,9 @@ static inline void __ustream_ssl_update_peer_cn(struct ustream_ssl *us)
 {
 }
 
+static inline void __ustream_ssl_set_server_name(struct ustream_ssl *us)
+{
+	SSL_set_tlsext_host_name(us->ssl, us->server_name);
+}
+
 #endif

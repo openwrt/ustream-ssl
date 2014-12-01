@@ -34,6 +34,7 @@ struct ustream_ssl {
 	void *ssl;
 
 	char *peer_cn;
+	char *server_name;
 
 	int error;
 	bool connected;
