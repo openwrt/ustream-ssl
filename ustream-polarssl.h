@@ -26,6 +26,7 @@
 #include <polarssl/rsa.h>
 #include <polarssl/error.h>
 #include <polarssl/version.h>
+#include <polarssl/entropy.h>
 
 #if POLARSSL_VERSION_MAJOR > 1 || POLARSSL_VERSION_MINOR >= 3
 #define USE_VERSION_1_3

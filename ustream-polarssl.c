@@ -79,7 +79,9 @@ static bool urandom_init(void)
 
 static int _urandom(void *ctx, unsigned char *out, size_t len)
 {
-	read(urandom_fd, out, len);
+	if (read(urandom_fd, out, len) < 0)
+		return POLARSSL_ERR_ENTROPY_SOURCE_FAILED;
+
 	return 0;
 }
 
