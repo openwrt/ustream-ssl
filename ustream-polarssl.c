@@ -232,17 +232,23 @@ __hidden enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us)
 __hidden int __ustream_ssl_write(struct ustream_ssl *us, const char *buf, int len)
 {
 	void *ssl = us->ssl;
-	int ret = ssl_write(ssl, (const unsigned char *) buf, len);
+	int done = 0, ret = 0;
 
-	if (ret < 0) {
-		if (ssl_do_wait(ret))
-			return 0;
+	while (done != len) {
+		ret = ssl_write(ssl, (const unsigned char *) buf + done, len - done);
 
-		ustream_ssl_error(us, ret);
-		return -1;
+		if (ret < 0) {
+			if (ssl_do_wait(ret))
+				return done;
+
+			ustream_ssl_error(us, ret);
+			return -1;
+		}
+
+		done += ret;
 	}
 
-	return ret;
+	return done;
 }
 
 __hidden int __ustream_ssl_read(struct ustream_ssl *us, char *buf, int len)
