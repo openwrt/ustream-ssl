@@ -21,7 +21,9 @@
 
 #define __hidden __attribute__((visibility("hidden")))
 
-#ifdef HAVE_POLARSSL
+#if defined(HAVE_MBEDTLS)
+#include "ustream-mbedtls.h"
+#elif defined(HAVE_POLARSSL)
 #include "ustream-polarssl.h"
 #else
 #include "ustream-openssl.h"

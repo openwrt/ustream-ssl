@@ -7,7 +7,11 @@ ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -g3 -Wmissing-declarations)
 
 SET(CMAKE_SHARED_LIBRARY_LINK_C_FLAGS "")
 
-IF(POLARSSL)
+IF(MBEDTLS)
+  ADD_DEFINITIONS(-DHAVE_MBEDTLS)
+  SET(SSL_SRC ustream-mbedtls.c)
+  SET(SSL_LIB mbedtls mbedcrypto mbedx509 m)
+ELSEIF(POLARSSL)
   ADD_DEFINITIONS(-DHAVE_POLARSSL)
   SET(SSL_SRC ustream-polarssl.c)
   SET(SSL_LIB polarssl m)
