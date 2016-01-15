@@ -99,11 +99,7 @@ __ustream_ssl_context_new(bool server)
 		return NULL;
 
 	ctx->server = server;
-#ifdef USE_VERSION_1_3
 	pk_init(&ctx->key);
-#else
-	rsa_init(&ctx->key, RSA_PKCS_V15, 0);
-#endif
 
 	return ctx;
 }
@@ -112,11 +108,7 @@ __hidden int __ustream_ssl_add_ca_crt_file(struct ustream_ssl_ctx *ctx, const ch
 {
 	int ret;
 
-#ifdef USE_VERSION_1_3
 	ret = x509_crt_parse_file(&ctx->ca_cert, file);
-#else
-	ret = x509parse_crtfile(&ctx->ca_cert, file);
-#endif
 	if (ret)
 		return -1;
 
@@ -127,11 +119,7 @@ __hidden int __ustream_ssl_set_crt_file(struct ustream_ssl_ctx *ctx, const char 
 {
 	int ret;
 
-#ifdef USE_VERSION_1_3
 	ret = x509_crt_parse_file(&ctx->cert, file);
-#else
-	ret = x509parse_crtfile(&ctx->cert, file);
-#endif
 	if (ret)
 		return -1;
 
@@ -142,11 +130,7 @@ __hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char 
 {
 	int ret;
 
-#ifdef USE_VERSION_1_3
 	ret = pk_parse_keyfile(&ctx->key, file, NULL);
-#else
-	ret = x509parse_keyfile(&ctx->key, file, NULL);
-#endif
 	if (ret)
 		return -1;
 
@@ -155,13 +139,8 @@ __hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char 
 
 __hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 {
-#ifdef USE_VERSION_1_3
 	pk_free(&ctx->key);
 	x509_crt_free(&ctx->cert);
-#else
-	rsa_free(&ctx->key);
-	x509_free(&ctx->cert);
-#endif
 	free(ctx);
 }
 
