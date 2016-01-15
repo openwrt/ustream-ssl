@@ -140,6 +140,7 @@ __hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char 
 __hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 {
 	pk_free(&ctx->key);
+	x509_crt_free(&ctx->ca_cert);
 	x509_crt_free(&ctx->cert);
 	free(ctx);
 }
@@ -317,7 +318,7 @@ __hidden void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx)
 			ssl_set_ca_chain(ssl, ctx->cert.next, NULL, NULL);
 		ssl_set_own_cert(ssl, &ctx->cert, &ctx->key);
 	} else {
-		ssl_set_ca_chain(ssl, &ctx->cert, NULL, NULL);
+		ssl_set_ca_chain(ssl, &ctx->ca_cert, NULL, NULL);
 	}
 
 	ssl_session_reset(ssl);
