@@ -302,10 +302,6 @@ static const int default_ciphersuites[] =
 #if defined(POLARSSL_DES_C)
     TLS_RSA_WITH_3DES_EDE_CBC_SHA,
 #endif
-#if defined(POLARSSL_ARC4_C)
-    TLS_RSA_WITH_RC4_128_SHA,
-    TLS_RSA_WITH_RC4_128_MD5,
-#endif
     0
 };
 
