@@ -100,6 +100,8 @@ __ustream_ssl_context_new(bool server)
 
 	ctx->server = server;
 	pk_init(&ctx->key);
+	x509_crt_init(&ctx->ca_cert);
+	x509_crt_init(&ctx->cert);
 
 	return ctx;
 }
