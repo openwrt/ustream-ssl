@@ -86,43 +86,38 @@ static int _urandom(void *ctx, unsigned char *out, size_t len)
 	return 0;
 }
 
-static const int default_ciphersuites[] =
+#define TLS_DEFAULT_CIPHERS			\
+    TLS_CIPHER(AES_256_CBC_SHA256)		\
+    TLS_CIPHER(AES_256_GCM_SHA384)		\
+    TLS_CIPHER(AES_256_CBC_SHA)			\
+    TLS_CIPHER(CAMELLIA_256_CBC_SHA256)		\
+    TLS_CIPHER(CAMELLIA_256_CBC_SHA)		\
+    TLS_CIPHER(AES_128_CBC_SHA256)		\
+    TLS_CIPHER(AES_128_GCM_SHA256)		\
+    TLS_CIPHER(AES_128_CBC_SHA)			\
+    TLS_CIPHER(CAMELLIA_128_CBC_SHA256)		\
+    TLS_CIPHER(CAMELLIA_128_CBC_SHA)		\
+    TLS_CIPHER(3DES_EDE_CBC_SHA)
+
+static const int default_ciphersuites_nodhe[] =
 {
-#if defined(MBEDTLS_AES_C)
-#if defined(MBEDTLS_SHA2_C)
-	MBEDTLS_TLS_RSA_WITH_AES_256_CBC_SHA256,
-#endif /* MBEDTLS_SHA2_C */
-#if defined(MBEDTLS_GCM_C) && defined(MBEDTLS_SHA4_C)
-	MBEDTLS_TLS_RSA_WITH_AES_256_GCM_SHA384,
-#endif /* MBEDTLS_SHA2_C */
-	MBEDTLS_TLS_RSA_WITH_AES_256_CBC_SHA,
-#endif
-#if defined(MBEDTLS_CAMELLIA_C)
-#if defined(MBEDTLS_SHA2_C)
-	MBEDTLS_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA256,
-#endif /* MBEDTLS_SHA2_C */
-	MBEDTLS_TLS_RSA_WITH_CAMELLIA_256_CBC_SHA,
-#endif
-#if defined(MBEDTLS_AES_C)
-#if defined(MBEDTLS_SHA2_C)
-	MBEDTLS_TLS_RSA_WITH_AES_128_CBC_SHA256,
-#endif /* MBEDTLS_SHA2_C */
-#if defined(MBEDTLS_GCM_C) && defined(MBEDTLS_SHA2_C)
-	MBEDTLS_TLS_RSA_WITH_AES_128_GCM_SHA256,
-#endif /* MBEDTLS_SHA2_C */
-	MBEDTLS_TLS_RSA_WITH_AES_128_CBC_SHA,
-#endif
-#if defined(MBEDTLS_CAMELLIA_C)
-#if defined(MBEDTLS_SHA2_C)
-	MBEDTLS_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA256,
-#endif /* MBEDTLS_SHA2_C */
-	MBEDTLS_TLS_RSA_WITH_CAMELLIA_128_CBC_SHA,
-#endif
-#if defined(MBEDTLS_DES_C)
-	MBEDTLS_TLS_RSA_WITH_3DES_EDE_CBC_SHA,
-#endif
+#define TLS_CIPHER(v)				\
+	MBEDTLS_TLS_RSA_WITH_##v,
+	TLS_DEFAULT_CIPHERS
+#undef TLS_CIPHER
 	0
 };
+
+static const int default_ciphersuites[] =
+{
+#define TLS_CIPHER(v)				\
+	MBEDTLS_TLS_DHE_RSA_WITH_##v,		\
+	MBEDTLS_TLS_RSA_WITH_##v,
+	TLS_DEFAULT_CIPHERS
+#undef TLS_CIPHER
+	0
+};
+
 
 __hidden struct ustream_ssl_ctx *
 __ustream_ssl_context_new(bool server)
@@ -145,12 +140,14 @@ __ustream_ssl_context_new(bool server)
 
 	conf = &ctx->conf;
 	mbedtls_ssl_config_init(conf);
-	mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites);
 
-	if (server)
+	if (server) {
+		mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites_nodhe);
 		ep = MBEDTLS_SSL_IS_SERVER;
-	else
+	} else {
+		mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites);
 		ep = MBEDTLS_SSL_IS_CLIENT;
+	}
 
 	mbedtls_ssl_config_defaults(conf, ep, MBEDTLS_SSL_TRANSPORT_STREAM,
 				    MBEDTLS_SSL_PRESET_DEFAULT);
