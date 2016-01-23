@@ -242,6 +242,9 @@ __hidden int __ustream_ssl_read(struct ustream_ssl *us, char *buf, int len)
 		if (ssl_do_wait(ret))
 			return U_SSL_PENDING;
 
+		if (ret == POLARSSL_ERR_SSL_PEER_CLOSE_NOTIFY)
+			return 0;
+
 		ustream_ssl_error(us, ret);
 		return U_SSL_ERROR;
 	}
