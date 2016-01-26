@@ -115,113 +115,15 @@ static void ustream_ssl_error(struct ustream_ssl *us, int ret)
 
 #ifndef CYASSL_OPENSSL_H_
 
-static bool host_pattern_match(const unsigned char *pattern, const char *cn)
-{
-	char c;
-
-	for (; (c = tolower(*pattern++)) != 0; cn++) {
-		if (c != '*') {
-			if (c != tolower(*cn))
-				return false;
-			continue;
-		}
-
-		do {
-			c = tolower(*pattern++);
-		} while (c == '*');
-
-		while (*cn) {
-			if (c == tolower(*cn) &&
-			    host_pattern_match(pattern, cn))
-				return true;
-			if (*cn == '.')
-				return false;
-			cn++;
-		}
-
-		return !c;
-	}
-	return !*cn;
-}
-
-static bool host_pattern_match_asn1(ASN1_STRING *asn1, const char *cn)
-{
-	unsigned char *pattern;
-	bool ret = false;
-
-	if (ASN1_STRING_to_UTF8(&pattern, asn1) < 0)
-		return false;
-
-	if (!pattern)
-		return false;
-
-	if (strlen((char *) pattern) == ASN1_STRING_length(asn1))
-		ret = host_pattern_match(pattern, cn);
-
-	OPENSSL_free(pattern);
-
-	return ret;
-}
-
-static bool ustream_ssl_verify_cn_alt(struct ustream_ssl *us, X509 *cert)
-{
-	GENERAL_NAMES *alt_names;
-	int i, n_alt;
-	bool ret = false;
-
-	alt_names = X509_get_ext_d2i (cert, NID_subject_alt_name, NULL, NULL);
-	if (!alt_names)
-		return false;
-
-	n_alt = sk_GENERAL_NAME_num(alt_names);
-	for (i = 0; i < n_alt; i++) {
-		const GENERAL_NAME *name = sk_GENERAL_NAME_value(alt_names, i);
-
-		if (!name)
-			continue;
-
-		if (name->type != GEN_DNS)
-			continue;
-
-		if (host_pattern_match_asn1(name->d.dNSName, us->peer_cn)) {
-			ret = true;
-			break;
-		}
-	}
-
-	sk_GENERAL_NAME_free(alt_names);
-	return ret;
-}
-
 static bool ustream_ssl_verify_cn(struct ustream_ssl *us, X509 *cert)
 {
-	ASN1_STRING *astr;
-	X509_NAME *xname;
-	int i, last;
+	int ret;
 
 	if (!us->peer_cn)
 		return false;
 
-	if (ustream_ssl_verify_cn_alt(us, cert))
-		return true;
-
-	xname = X509_get_subject_name(cert);
-
-	last = -1;
-	while (1) {
-		i = X509_NAME_get_index_by_NID(xname, NID_commonName, last);
-		if (i < 0)
-			break;
-
-		last = i;
-	}
-
-	if (last < 0)
-		return false;
-
-	astr = X509_NAME_ENTRY_get_data(X509_NAME_get_entry(xname, last));
-
-	return host_pattern_match_asn1(astr, us->peer_cn);
+	ret = X509_check_host(cert, us->peer_cn, 0, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS, NULL);
+	return ret == 1;
 }
 
 
