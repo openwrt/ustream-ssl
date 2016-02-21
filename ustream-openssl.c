@@ -35,17 +35,14 @@ __ustream_ssl_context_new(bool server)
 		_init = true;
 	}
 
-#ifdef CYASSL_OPENSSL_H_
 	if (server)
+#ifdef CYASSL_OPENSSL_H_
 		m = SSLv23_server_method();
+#else
+		m = TLSv1_2_server_method();
+#endif
 	else
 		m = SSLv23_client_method();
-#else
-	if (server)
-		m = TLSv1_2_server_method();
-	else
-		m = TLSv1_2_client_method();
-#endif
 
 	c = SSL_CTX_new((void *) m);
 	if (!c)
