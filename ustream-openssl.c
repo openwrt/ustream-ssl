@@ -42,9 +42,9 @@ __ustream_ssl_context_new(bool server)
 		m = SSLv23_client_method();
 #else
 	if (server)
-		m = TLSv1_server_method();
+		m = TLSv1_2_server_method();
 	else
-		m = TLSv1_client_method();
+		m = TLSv1_2_client_method();
 #endif
 
 	c = SSL_CTX_new((void *) m);
