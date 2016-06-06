@@ -26,6 +26,9 @@
 #elif defined(HAVE_POLARSSL)
 #include "ustream-polarssl.h"
 #else
+#if defined(HAVE_CYASSL)
+#include <wolfssl/options.h>
+#endif
 #include "ustream-openssl.h"
 #endif
 
