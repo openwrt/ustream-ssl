@@ -29,6 +29,9 @@ ELSE()
   SET(SSL_LIB crypto ssl)
 ENDIF()
 
+FIND_PATH(ubox_include_dir libubox/ustream.h)
+INCLUDE_DIRECTORIES(${ubox_include_dir})
+
 ADD_LIBRARY(ustream-ssl SHARED ustream-ssl.c ${SSL_SRC})
 TARGET_LINK_LIBRARIES(ustream-ssl ubox ${SSL_LIB})
 
