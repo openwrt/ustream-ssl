@@ -23,8 +23,6 @@
 
 #if defined(HAVE_MBEDTLS)
 #include "ustream-mbedtls.h"
-#elif defined(HAVE_POLARSSL)
-#include "ustream-polarssl.h"
 #else
 #if defined(HAVE_CYASSL)
 #include <wolfssl/options.h>
