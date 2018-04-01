@@ -52,6 +52,8 @@ __ustream_ssl_context_new(bool server)
 #ifndef OPENSSL_NO_ECDH
 	SSL_CTX_set_ecdh_auto(c, 1);
 #endif
+	if (server)
+		SSL_CTX_set_cipher_list(c, "DEFAULT:!RC4:@STRENGTH");
 	SSL_CTX_set_quiet_shutdown(c, 1);
 
 	return (void *) c;
