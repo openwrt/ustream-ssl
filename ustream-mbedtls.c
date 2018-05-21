@@ -138,6 +138,12 @@ __ustream_ssl_context_new(bool server)
 	mbedtls_x509_crt_init(&ctx->cert);
 	mbedtls_x509_crt_init(&ctx->ca_cert);
 
+#if defined(MBEDTLS_SSL_CACHE_C)
+	mbedtls_ssl_cache_init(&ctx->cache);
+	mbedtls_ssl_cache_set_timeout(&ctx->cache, 30 * 60);
+	mbedtls_ssl_cache_set_max_entries(&ctx->cache, 5);
+#endif
+
 	conf = &ctx->conf;
 	mbedtls_ssl_config_init(conf);
 
@@ -154,6 +160,11 @@ __ustream_ssl_context_new(bool server)
 	mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_NONE);
 	mbedtls_ssl_conf_rng(conf, _urandom, NULL);
 
+#if defined(MBEDTLS_SSL_CACHE_C)
+	mbedtls_ssl_conf_session_cache(conf, &ctx->cache,
+				       mbedtls_ssl_cache_get,
+				       mbedtls_ssl_cache_set);
+#endif
 	return ctx;
 }
 
@@ -214,6 +225,9 @@ __hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char 
 
 __hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 {
+#if defined(MBEDTLS_SSL_CACHE_C)
+	mbedtls_ssl_cache_free(&ctx->cache);
+#endif
 	mbedtls_pk_free(&ctx->key);
 	mbedtls_x509_crt_free(&ctx->ca_cert);
 	mbedtls_x509_crt_free(&ctx->cert);

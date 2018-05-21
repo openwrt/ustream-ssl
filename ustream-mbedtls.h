@@ -28,11 +28,18 @@
 #include <mbedtls/version.h>
 #include <mbedtls/entropy.h>
 
+#if defined(MBEDTLS_SSL_CACHE_C)
+#include <mbedtls/ssl_cache.h>
+#endif
+
 struct ustream_ssl_ctx {
 	mbedtls_ssl_config conf;
 	mbedtls_pk_context key;
 	mbedtls_x509_crt ca_cert;
 	mbedtls_x509_crt cert;
+#if defined(MBEDTLS_SSL_CACHE_C)
+	mbedtls_ssl_cache_context cache;
+#endif
 	bool server;
 };
 
