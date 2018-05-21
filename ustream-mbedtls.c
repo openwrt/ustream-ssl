@@ -87,21 +87,17 @@ static int _urandom(void *ctx, unsigned char *out, size_t len)
 }
 
 #define TLS_DEFAULT_CIPHERS			\
-    TLS_CIPHER(AES_256_CBC_SHA256)		\
-    TLS_CIPHER(AES_256_GCM_SHA384)		\
-    TLS_CIPHER(AES_256_CBC_SHA)			\
-    TLS_CIPHER(CAMELLIA_256_CBC_SHA256)		\
-    TLS_CIPHER(CAMELLIA_256_CBC_SHA)		\
-    TLS_CIPHER(AES_128_CBC_SHA256)		\
     TLS_CIPHER(AES_128_GCM_SHA256)		\
+    TLS_CIPHER(AES_256_GCM_SHA384)		\
     TLS_CIPHER(AES_128_CBC_SHA)			\
-    TLS_CIPHER(CAMELLIA_128_CBC_SHA256)		\
-    TLS_CIPHER(CAMELLIA_128_CBC_SHA)		\
+    TLS_CIPHER(AES_256_CBC_SHA)			\
     TLS_CIPHER(3DES_EDE_CBC_SHA)
 
 static const int default_ciphersuites_nodhe[] =
 {
 #define TLS_CIPHER(v)				\
+	MBEDTLS_TLS_ECDHE_ECDSA_WITH_##v,	\
+	MBEDTLS_TLS_ECDHE_RSA_WITH_##v,		\
 	MBEDTLS_TLS_RSA_WITH_##v,
 	TLS_DEFAULT_CIPHERS
 #undef TLS_CIPHER
@@ -111,6 +107,8 @@ static const int default_ciphersuites_nodhe[] =
 static const int default_ciphersuites[] =
 {
 #define TLS_CIPHER(v)				\
+	MBEDTLS_TLS_ECDHE_ECDSA_WITH_##v,	\
+	MBEDTLS_TLS_ECDHE_RSA_WITH_##v,		\
 	MBEDTLS_TLS_DHE_RSA_WITH_##v,		\
 	MBEDTLS_TLS_RSA_WITH_##v,
 	TLS_DEFAULT_CIPHERS
@@ -147,18 +145,17 @@ __ustream_ssl_context_new(bool server)
 	conf = &ctx->conf;
 	mbedtls_ssl_config_init(conf);
 
-	if (server) {
-		mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites_nodhe);
-		ep = MBEDTLS_SSL_IS_SERVER;
-	} else {
-		mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites);
-		ep = MBEDTLS_SSL_IS_CLIENT;
-	}
+	ep = server ? MBEDTLS_SSL_IS_SERVER : MBEDTLS_SSL_IS_CLIENT;
 
 	mbedtls_ssl_config_defaults(conf, ep, MBEDTLS_SSL_TRANSPORT_STREAM,
 				    MBEDTLS_SSL_PRESET_DEFAULT);
 	mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_NONE);
 	mbedtls_ssl_conf_rng(conf, _urandom, NULL);
+
+	if (server)
+		mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites_nodhe);
+	else
+		mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites);
 
 #if defined(MBEDTLS_SSL_CACHE_C)
 	mbedtls_ssl_conf_session_cache(conf, &ctx->cache,
