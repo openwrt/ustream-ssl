@@ -49,7 +49,7 @@ __ustream_ssl_context_new(bool server)
 		return NULL;
 
 	SSL_CTX_set_verify(c, SSL_VERIFY_NONE, NULL);
-#ifndef OPENSSL_NO_ECDH
+#if !defined(OPENSSL_NO_ECDH) && !defined(CYASSL_OPENSSL_H_)
 	SSL_CTX_set_ecdh_auto(c, 1);
 #endif
 	if (server)
