@@ -21,15 +21,15 @@
 #include <libubox/ustream.h>
 
 #include "ustream-ssl.h"
+#include "openssl_bio_compat.h"
 #include "ustream-internal.h"
 
 static int
 s_ustream_new(BIO *b)
 {
-	b->init = 1;
-	b->num = 0;
-	b->ptr = NULL;
-	b->flags = 0;
+	BIO_set_init(b, 1);
+	BIO_set_data(b, NULL);
+	BIO_clear_flags(b, ~0);
 	return 1;
 }
 
@@ -39,9 +39,9 @@ s_ustream_free(BIO *b)
 	if (!b)
 		return 0;
 
-	b->ptr = NULL;
-	b->init = 0;
-	b->flags = 0;
+	BIO_set_data(b, NULL);
+	BIO_set_init(b, 0);
+	BIO_clear_flags(b, ~0);
 	return 1;
 }
 
@@ -55,7 +55,7 @@ s_ustream_read(BIO *b, char *buf, int len)
 	if (!buf || len <= 0)
 		return 0;
 
-	s = (struct ustream *)b->ptr;
+	s = (struct ustream *)BIO_get_data(b);
 	if (!s)
 		return 0;
 
@@ -84,7 +84,7 @@ s_ustream_write(BIO *b, const char *buf, int len)
 	if (!buf || len <= 0)
 		return 0;
 
-	s = (struct ustream *)b->ptr;
+	s = (struct ustream *)BIO_get_data(b);
 	if (!s)
 		return 0;
 
@@ -116,25 +116,23 @@ static long s_ustream_ctrl(BIO *b, int cmd, long num, void *ptr)
 	};
 }
 
-static BIO_METHOD methods_ustream = {
-	100 | BIO_TYPE_SOURCE_SINK,
-	"ustream",
-	s_ustream_write,
-	s_ustream_read,
-	s_ustream_puts,
-	s_ustream_gets,
-	s_ustream_ctrl,
-	s_ustream_new,
-	s_ustream_free,
-	NULL,
-};
-
 static BIO *ustream_bio_new(struct ustream *s)
 {
 	BIO *bio;
 
-	bio = BIO_new(&methods_ustream);
-	bio->ptr = s;
+	BIO_METHOD *methods_ustream;
+
+	methods_ustream = BIO_meth_new(100 | BIO_TYPE_SOURCE_SINK, "ustream");
+	BIO_meth_set_write(methods_ustream, s_ustream_write);
+	BIO_meth_set_read(methods_ustream, s_ustream_read);
+	BIO_meth_set_puts(methods_ustream, s_ustream_puts);
+	BIO_meth_set_gets(methods_ustream, s_ustream_gets);
+	BIO_meth_set_ctrl(methods_ustream, s_ustream_ctrl);
+	BIO_meth_set_create(methods_ustream, s_ustream_new);
+	BIO_meth_set_destroy(methods_ustream, s_ustream_free);
+	bio = BIO_new(methods_ustream);
+	BIO_set_data(bio, s);
+
 	return bio;
 }
 

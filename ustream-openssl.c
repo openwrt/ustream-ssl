@@ -25,35 +25,43 @@
 __hidden struct ustream_ssl_ctx *
 __ustream_ssl_context_new(bool server)
 {
-	static bool _init = false;
 	const void *m;
 	SSL_CTX *c;
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
+	static bool _init = false;
 
 	if (!_init) {
 		SSL_load_error_strings();
 		SSL_library_init();
 		_init = true;
 	}
-
-	if (server)
-#ifdef CYASSL_OPENSSL_H_
-		m = SSLv23_server_method();
-#else
-		m = TLSv1_2_server_method();
+# define TLS_server_method SSLv23_server_method
+# define TLS_client_method SSLv23_client_method
 #endif
-	else
-		m = SSLv23_client_method();
+
+	if (server) {
+		m = TLS_server_method();
+	} else
+		m = TLS_client_method();
 
 	c = SSL_CTX_new((void *) m);
 	if (!c)
 		return NULL;
 
 	SSL_CTX_set_verify(c, SSL_VERIFY_NONE, NULL);
-#if !defined(OPENSSL_NO_ECDH) && !defined(CYASSL_OPENSSL_H_)
+	SSL_CTX_set_options (c, SSL_OP_NO_COMPRESSION); /* avoid CRIME attack */
+#if !defined(OPENSSL_NO_ECDH) && !defined(CYASSL_OPENSSL_H_) && OPENSSL_VERSION_NUMBER < 0x10100000L
 	SSL_CTX_set_ecdh_auto(c, 1);
 #endif
-	if (server)
+	if (server) {
+#if OPENSSL_VERSION_NUMBER >= 0x10100000L
+		SSL_CTX_set_min_proto_version(c, TLS1_2_VERSION);
+#else
+		SSL_CTX_set_options (c, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
+#endif
 		SSL_CTX_set_cipher_list(c, "DEFAULT:!RC4:@STRENGTH");
+	}
 	SSL_CTX_set_quiet_shutdown(c, 1);
 
 	return (void *) c;
