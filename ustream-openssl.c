@@ -22,6 +22,53 @@
 #include "ustream-ssl.h"
 #include "ustream-internal.h"
 
+
+/* Ciphersuite preference:
+ * - key exchange: prefer ECDHE, then DHE(client only), then RSA
+ * - prefer AEAD ciphers:
+ *   	chacha20-poly1305, the fastest in software, 256-bits
+ * 	aes128-gcm, 128-bits
+ * 	aes256-gcm, 256-bits
+ * - CBC ciphers
+ *	aes128, aes256, 3DES(client only)
+ */
+
+#define ecdhe_ciphers							\
+				"ECDHE-ECDSA-CHACHA20-POLY1305:"	\
+				"ECDHE-ECDSA-AES128-GCM-SHA256:"	\
+				"ECDHE-ECDSA-AES256-GCM-SHA384:"	\
+				"ECDHE-ECDSA-AES128-SHA:"		\
+				"ECDHE-ECDSA-AES256-SHA:"		\
+				"ECDHE-RSA-CHACHA20-POLY1305:"		\
+				"ECDHE-RSA-AES128-GCM-SHA256:"		\
+				"ECDHE-RSA-AES256-GCM-SHA384:"		\
+				"ECDHE-RSA-AES128-SHA:"			\
+				"ECDHE-RSA-AES256-SHA"
+
+#define dhe_ciphers							\
+				"DHE-RSA-CHACHA20-POLY1305:"		\
+				"DHE-RSA-AES128-GCM-SHA256:"		\
+				"DHE-RSA-AES256-GCM-SHA384:"		\
+				"DHE-RSA-AES128-SHA:"			\
+				"DHE-RSA-AES256-SHA:"			\
+				"DHE-DES-CBC3-SHA"
+
+#define non_pfs_aes							\
+				"AES128-GCM-SHA256:"			\
+				"AES256-GCM-SHA384:"			\
+				"AES128-SHA:"				\
+				"AES256-SHA"
+
+#define server_cipher_list						\
+				ecdhe_ciphers ":"			\
+				non_pfs_aes
+
+#define client_cipher_list						\
+				ecdhe_ciphers ":"			\
+				dhe_ciphers ":"				\
+				non_pfs_aes ":"				\
+				"DES-CBC3-SHA"
+
 __hidden struct ustream_ssl_ctx *
 __ustream_ssl_context_new(bool server)
 {
@@ -36,7 +83,7 @@ __ustream_ssl_context_new(bool server)
 		SSL_library_init();
 		_init = true;
 	}
-# define TLS_server_method SSLv23_server_method
+# define TLS_server_method TLSv1_2_server_method
 # define TLS_client_method SSLv23_client_method
 #endif
 
@@ -50,17 +97,18 @@ __ustream_ssl_context_new(bool server)
 		return NULL;
 
 	SSL_CTX_set_verify(c, SSL_VERIFY_NONE, NULL);
-	SSL_CTX_set_options (c, SSL_OP_NO_COMPRESSION); /* avoid CRIME attack */
-#if !defined(OPENSSL_NO_ECDH) && !defined(CYASSL_OPENSSL_H_) && OPENSSL_VERSION_NUMBER < 0x10100000L
+	SSL_CTX_set_options(c, SSL_OP_NO_COMPRESSION | SSL_OP_SINGLE_ECDH_USE |
+			       SSL_OP_CIPHER_SERVER_PREFERENCE);
+#if defined(SSL_CTX_set_ecdh_auto) && OPENSSL_VERSION_NUMBER < 0x10100000L
 	SSL_CTX_set_ecdh_auto(c, 1);
 #endif
 	if (server) {
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 		SSL_CTX_set_min_proto_version(c, TLS1_2_VERSION);
-#else
-		SSL_CTX_set_options (c, SSL_OP_NO_SSLv2 | SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 | SSL_OP_NO_TLSv1_1);
 #endif
-		SSL_CTX_set_cipher_list(c, "DEFAULT:!RC4:@STRENGTH");
+		SSL_CTX_set_cipher_list(c, server_cipher_list);
+	} else {
+		SSL_CTX_set_cipher_list(c, client_cipher_list);
 	}
 	SSL_CTX_set_quiet_shutdown(c, 1);
 
