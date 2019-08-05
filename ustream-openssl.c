@@ -22,14 +22,16 @@
 #include "ustream-ssl.h"
 #include "ustream-internal.h"
 
-
 /* Ciphersuite preference:
- * - key exchange: prefer ECDHE, then DHE(client only), then RSA
- * - prefer AEAD ciphers:
+ * - for server, no weak ciphers are used if you use an ECDSA key.
+ * - forward-secret (pfs), authenticated (AEAD) ciphers are at the top:
  *   	chacha20-poly1305, the fastest in software, 256-bits
  * 	aes128-gcm, 128-bits
  * 	aes256-gcm, 256-bits
- * - CBC ciphers
+ * - key exchange: prefer ECDHE, then DHE (client only)
+ * - forward-secret ECDSA CBC ciphers (client-only)
+ * - forward-secret RSA CBC ciphers
+ * - non-pfs ciphers
  *	aes128, aes256, 3DES(client only)
  */
 
@@ -38,32 +40,38 @@
 				"TLS13-CHACHA20-POLY1305-SHA256:"	\
 				"TLS13-AES128-GCM-SHA256:"		\
 				"TLS13-AES256-GCM-SHA384:"		\
-				ecdhe_ciphers
+				ecdhe_aead_ciphers
 #else
 # define tls13_ciphersuites	"TLS_CHACHA20_POLY1305_SHA256:"		\
 				"TLS_AES_128_GCM_SHA256:"		\
 				"TLS_AES_256_GCM_SHA384"
 
 # define top_ciphers							\
-				ecdhe_ciphers
+				ecdhe_aead_ciphers
 #endif
 
-#define ecdhe_ciphers							\
+#define ecdhe_aead_ciphers						\
 				"ECDHE-ECDSA-CHACHA20-POLY1305:"	\
 				"ECDHE-ECDSA-AES128-GCM-SHA256:"	\
 				"ECDHE-ECDSA-AES256-GCM-SHA384:"	\
-				"ECDHE-ECDSA-AES128-SHA:"		\
-				"ECDHE-ECDSA-AES256-SHA:"		\
 				"ECDHE-RSA-CHACHA20-POLY1305:"		\
 				"ECDHE-RSA-AES128-GCM-SHA256:"		\
-				"ECDHE-RSA-AES256-GCM-SHA384:"		\
+				"ECDHE-RSA-AES256-GCM-SHA384"
+
+#define dhe_aead_ciphers						\
+				"DHE-RSA-CHACHA20-POLY1305:"		\
+				"DHE-RSA-AES128-GCM-SHA256:"		\
+				"DHE-RSA-AES256-GCM-SHA384"
+
+#define ecdhe_ecdsa_cbc_ciphers						\
+				"ECDHE-ECDSA-AES128-SHA:"		\
+				"ECDHE-ECDSA-AES256-SHA"
+
+#define ecdhe_rsa_cbc_ciphers						\
 				"ECDHE-RSA-AES128-SHA:"			\
 				"ECDHE-RSA-AES256-SHA"
 
-#define dhe_ciphers							\
-				"DHE-RSA-CHACHA20-POLY1305:"		\
-				"DHE-RSA-AES128-GCM-SHA256:"		\
-				"DHE-RSA-AES256-GCM-SHA384:"		\
+#define dhe_cbc_ciphers							\
 				"DHE-RSA-AES128-SHA:"			\
 				"DHE-RSA-AES256-SHA:"			\
 				"DHE-DES-CBC3-SHA"
@@ -76,11 +84,15 @@
 
 #define server_cipher_list						\
 				top_ciphers ":"				\
+				ecdhe_rsa_cbc_ciphers ":"		\
 				non_pfs_aes
 
 #define client_cipher_list						\
 				top_ciphers ":"				\
-				dhe_ciphers ":"				\
+				dhe_aead_ciphers ":"			\
+				ecdhe_ecdsa_cbc_ciphers ":"		\
+				ecdhe_rsa_cbc_ciphers ":"		\
+				dhe_cbc_ciphers ":"			\
 				non_pfs_aes ":"				\
 				"DES-CBC3-SHA"
 
