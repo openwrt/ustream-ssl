@@ -33,6 +33,21 @@
  *	aes128, aes256, 3DES(client only)
  */
 
+#ifdef WOLFSSL_SSL_H
+# define top_ciphers							\
+				"TLS13-CHACHA20-POLY1305-SHA256:"	\
+				"TLS13-AES128-GCM-SHA256:"		\
+				"TLS13-AES256-GCM-SHA384:"		\
+				ecdhe_ciphers
+#else
+# define tls13_ciphersuites	"TLS_CHACHA20_POLY1305_SHA256:"		\
+				"TLS_AES_128_GCM_SHA256:"		\
+				"TLS_AES_256_GCM_SHA384"
+
+# define top_ciphers							\
+				ecdhe_ciphers
+#endif
+
 #define ecdhe_ciphers							\
 				"ECDHE-ECDSA-CHACHA20-POLY1305:"	\
 				"ECDHE-ECDSA-AES128-GCM-SHA256:"	\
@@ -60,11 +75,11 @@
 				"AES256-SHA"
 
 #define server_cipher_list						\
-				ecdhe_ciphers ":"			\
+				top_ciphers ":"				\
 				non_pfs_aes
 
 #define client_cipher_list						\
-				ecdhe_ciphers ":"			\
+				top_ciphers ":"				\
 				dhe_ciphers ":"				\
 				non_pfs_aes ":"				\
 				"DES-CBC3-SHA"
@@ -83,7 +98,7 @@ __ustream_ssl_context_new(bool server)
 		SSL_library_init();
 		_init = true;
 	}
-# define TLS_server_method TLSv1_2_server_method
+# define TLS_server_method SSLv23_server_method
 # define TLS_client_method SSLv23_client_method
 #endif
 
@@ -101,10 +116,15 @@ __ustream_ssl_context_new(bool server)
 			       SSL_OP_CIPHER_SERVER_PREFERENCE);
 #if defined(SSL_CTX_set_ecdh_auto) && OPENSSL_VERSION_NUMBER < 0x10100000L
 	SSL_CTX_set_ecdh_auto(c, 1);
+#elif OPENSSL_VERSION_NUMBER >= 0x10101000L
+	SSL_CTX_set_ciphersuites(c, tls13_ciphersuites);
 #endif
 	if (server) {
 #if OPENSSL_VERSION_NUMBER >= 0x10100000L
 		SSL_CTX_set_min_proto_version(c, TLS1_2_VERSION);
+#else
+		SSL_CTX_set_options(c, SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
+				       SSL_OP_NO_TLSv1_1);
 #endif
 		SSL_CTX_set_cipher_list(c, server_cipher_list);
 	} else {
