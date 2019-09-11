@@ -40,6 +40,26 @@ static void ustream_ssl_check_conn(struct ustream_ssl *us)
 		return;
 
 	if (__ustream_ssl_connect(us) == U_SSL_OK) {
+
+		/* __ustream_ssl_connect() will also return U_SSL_OK when certificate
+		 * verification failed!
+		 *
+		 * Applications may register a custom .notify_verify_error callback in the
+		 * struct ustream_ssl which is called upon verification failures, but there
+		 * is no straight forward way for the callback to terminate the connection
+		 * initiation right away, e.g. through a true or false return value.
+		 *
+		 * Instead, existing implementations appear to set .eof field of the underlying
+		 * ustream in the hope that this inhibits further operations on the stream.
+		 *
+		 * Declare this informal behaviour "official" and check for the state of the
+		 * .eof member after __ustream_ssl_connect() returned, and do not write the
+		 * pending data if it is set to true.
+		 */
+
+		if (us->stream.eof)
+			return;
+
 		us->connected = true;
 		if (us->notify_connected)
 			us->notify_connected(us);
