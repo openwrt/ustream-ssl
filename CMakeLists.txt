@@ -21,6 +21,12 @@ ELSEIF(WOLFSSL)
   IF (NOT HAVE_WOLFSSL_SSLSETIORECV)
     ADD_DEFINITIONS(-DNO_WOLFSSL_SSLSETIO_SEND_RECV)
   ENDIF()
+  CHECK_SYMBOL_EXISTS (wolfSSL_X509_check_host
+		       "wolfssl/options.h;wolfssl/ssl.h"
+		       HAVE_WOLFSSL_X509_CHECK_HOST)
+  IF (NOT HAVE_WOLFSSL_X509_CHECK_HOST)
+    ADD_DEFINITIONS(-DNO_X509_CHECK_HOST)
+  ENDIF()
 ELSE()
   SET(SSL_SRC ustream-io-openssl.c ustream-openssl.c)
   SET(SSL_LIB crypto ssl)

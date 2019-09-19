@@ -203,7 +203,7 @@ static void ustream_ssl_error(struct ustream_ssl *us, int ret)
 	uloop_timeout_set(&us->error_timer, 0);
 }
 
-#ifndef WOLFSSL_OPENSSL_H_
+#ifndef NO_X509_CHECK_HOST
 
 static bool ustream_ssl_verify_cn(struct ustream_ssl *us, X509 *cert)
 {
@@ -212,10 +212,15 @@ static bool ustream_ssl_verify_cn(struct ustream_ssl *us, X509 *cert)
 	if (!us->peer_cn)
 		return false;
 
+# ifndef WOLFSSL_OPENSSL_H_
 	ret = X509_check_host(cert, us->peer_cn, 0, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS, NULL);
+# else
+	ret = wolfSSL_X509_check_host(cert, us->peer_cn, 0, 0, NULL);
+# endif
 	return ret == 1;
 }
 
+#endif
 
 static void ustream_ssl_verify_cert(struct ustream_ssl *us)
 {
@@ -235,11 +240,12 @@ static void ustream_ssl_verify_cert(struct ustream_ssl *us)
 		return;
 
 	us->valid_cert = true;
+#ifndef NO_X509_CHECK_HOST
 	us->valid_cn = ustream_ssl_verify_cn(us, cert);
+#endif
 	X509_free(cert);
 }
 
-#endif
 
 __hidden enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us)
 {
@@ -252,9 +258,7 @@ __hidden enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us)
 		r = SSL_connect(ssl);
 
 	if (r == 1) {
-#ifndef WOLFSSL_OPENSSL_H_
 		ustream_ssl_verify_cert(us);
-#endif
 		return U_SSL_OK;
 	}
 
