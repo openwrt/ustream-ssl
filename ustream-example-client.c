@@ -80,7 +80,7 @@ static void client_notify_state(struct ustream *us)
 
 static void example_connect_ssl(int fd)
 {
-	fprintf(stderr, "Starting SSL negnotiation\n");
+	fprintf(stderr, "Starting SSL negotiation\n");
 
 	ssl.notify_error = client_notify_error;
 	ssl.notify_verify_error = client_notify_verify_error;
