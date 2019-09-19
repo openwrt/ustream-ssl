@@ -179,6 +179,9 @@ static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, struc
 	us->conn = conn;
 	us->ctx = ctx;
 
+#if defined(HAVE_WOLFSSL) && defined(NO_WOLFSSL_SSLSETIO_SEND_RECV)
+	ustream_set_io(ctx, NULL, conn);
+#endif
 	us->ssl = __ustream_ssl_session_new(us->ctx);
 	if (!us->ssl)
 		return -ENOMEM;

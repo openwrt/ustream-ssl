@@ -67,8 +67,15 @@ static int io_send_cb(SSL* ssl, char *buf, int sz, void *ctx)
 
 __hidden void ustream_set_io(struct ustream_ssl_ctx *ctx, void *ssl, struct ustream *conn)
 {
-	wolfSSL_SetIOReadCtx(ssl, conn);
-	wolfSSL_SetIOWriteCtx(ssl, conn);
+#ifndef NO_WOLFSSL_SSLSETIO_SEND_RECV
+	wolfSSL_SSLSetIORecv(ssl, io_recv_cb);
+	wolfSSL_SSLSetIOSend(ssl, io_send_cb);
+#else
 	wolfSSL_SetIORecv((void *) ctx, io_recv_cb);
 	wolfSSL_SetIOSend((void *) ctx, io_send_cb);
+	if (ssl == NULL)
+		return;
+#endif
+	wolfSSL_SetIOReadCtx(ssl, conn);
+	wolfSSL_SetIOWriteCtx(ssl, conn);
 }
