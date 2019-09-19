@@ -24,9 +24,6 @@
 #if defined(HAVE_MBEDTLS)
 #include "ustream-mbedtls.h"
 #else
-#if defined(HAVE_CYASSL)
-#include <wolfssl/options.h>
-#endif
 #include "ustream-openssl.h"
 #endif
 

@@ -18,9 +18,9 @@
 
 #include <string.h>
 #include <ctype.h>
-#include <openssl/x509v3.h>
 #include "ustream-ssl.h"
 #include "ustream-internal.h"
+#include <openssl/x509v3.h>
 
 /* Ciphersuite preference:
  * - for server, no weak ciphers are used if you use an ECDSA key.
@@ -203,7 +203,7 @@ static void ustream_ssl_error(struct ustream_ssl *us, int ret)
 	uloop_timeout_set(&us->error_timer, 0);
 }
 
-#ifndef CYASSL_OPENSSL_H_
+#ifndef WOLFSSL_OPENSSL_H_
 
 static bool ustream_ssl_verify_cn(struct ustream_ssl *us, X509 *cert)
 {
@@ -252,7 +252,7 @@ __hidden enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us)
 		r = SSL_connect(ssl);
 
 	if (r == 1) {
-#ifndef CYASSL_OPENSSL_H_
+#ifndef WOLFSSL_OPENSSL_H_
 		ustream_ssl_verify_cert(us);
 #endif
 		return U_SSL_OK;

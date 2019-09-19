@@ -19,6 +19,10 @@
 #ifndef __USTREAM_OPENSSL_H
 #define __USTREAM_OPENSSL_H
 
+#if defined(HAVE_WOLFSSL)
+#include <wolfssl/options.h>
+#endif
+
 #include <openssl/ssl.h>
 #include <openssl/err.h>
 #include <stdbool.h>
