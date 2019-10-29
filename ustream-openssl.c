@@ -110,8 +110,12 @@ __ustream_ssl_context_new(bool server)
 		SSL_library_init();
 		_init = true;
 	}
-# define TLS_server_method SSLv23_server_method
-# define TLS_client_method SSLv23_client_method
+# ifndef TLS_server_method
+#  define TLS_server_method SSLv23_server_method
+# endif
+# ifndef TLS_client_method
+#  define TLS_client_method SSLv23_client_method
+# endif
 #endif
 
 	if (server) {
