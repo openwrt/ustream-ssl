@@ -182,16 +182,9 @@ static void ustream_ssl_update_own_cert(struct ustream_ssl_ctx *ctx)
 	if (!ctx->cert.version)
 		return;
 
-	if (!ctx->server) {
-		mbedtls_ssl_conf_ca_chain(&ctx->conf, &ctx->cert, NULL);
-		return;
-	}
-
 	if (!ctx->key.pk_info)
 		return;
 
-	if (ctx->cert.next)
-		mbedtls_ssl_conf_ca_chain(&ctx->conf, ctx->cert.next, NULL);
 	mbedtls_ssl_conf_own_cert(&ctx->conf, &ctx->cert, &ctx->key);
 }
 
