@@ -41,6 +41,7 @@ struct ustream_ssl_ctx {
 	mbedtls_ssl_cache_context cache;
 #endif
 	bool server;
+	int *ciphersuites;
 };
 
 static inline char *__ustream_ssl_strerror(int error, char *buffer, int len)

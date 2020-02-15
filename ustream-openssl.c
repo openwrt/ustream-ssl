@@ -190,6 +190,16 @@ __hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char 
 	return 0;
 }
 
+__hidden int __ustream_ssl_set_ciphers(struct ustream_ssl_ctx *ctx, const char *ciphers)
+{
+	int ret = SSL_CTX_set_cipher_list((void *) ctx, ciphers);
+
+	if (ret == 0)
+		return -1;
+
+	return 0;
+}
+
 __hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 {
 	SSL_CTX_free((void *) ctx);
@@ -306,4 +316,3 @@ __hidden int __ustream_ssl_read(struct ustream_ssl *us, char *buf, int len)
 
 	return ret;
 }
-

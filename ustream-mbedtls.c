@@ -225,6 +225,71 @@ __hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char 
 	return 0;
 }
 
+__hidden int __ustream_ssl_set_ciphers(struct ustream_ssl_ctx *ctx, const char *ciphers)
+{
+	int *ciphersuites = NULL, *tmp, id;
+	char *cipherstr, *p, *last, c;
+	size_t len = 0;
+
+	if (ciphers == NULL)
+		return -1;
+
+	cipherstr = strdup(ciphers);
+
+	if (cipherstr == NULL)
+		return -1;
+
+	for (p = cipherstr, last = p;; p++) {
+		if (*p == ':' || *p == 0) {
+			c = *p;
+			*p = 0;
+
+			id = mbedtls_ssl_get_ciphersuite_id(last);
+
+			if (id != 0) {
+				tmp = realloc(ciphersuites, (len + 2) * sizeof(int));
+
+				if (tmp == NULL) {
+					free(ciphersuites);
+					free(cipherstr);
+
+					return -1;
+				}
+
+				ciphersuites = tmp;
+				ciphersuites[len++] = id;
+				ciphersuites[len] = 0;
+			}
+
+			if (c == 0)
+				break;
+
+			last = p + 1;
+		}
+
+		/*
+		 * mbedTLS expects cipher names with dashes while many sources elsewhere
+		 * like the Firefox wiki or Wireshark specify ciphers with underscores,
+		 * so simply convert all underscores to dashes to accept both notations.
+		 */
+		else if (*p == '_') {
+			*p = '-';
+		}
+	}
+
+	free(cipherstr);
+
+	if (len == 0)
+		return -1;
+
+	mbedtls_ssl_conf_ciphersuites(&ctx->conf, ciphersuites);
+	free(ctx->ciphersuites);
+
+	ctx->ciphersuites = ciphersuites;
+
+	return 0;
+}
+
 __hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 {
 #if defined(MBEDTLS_SSL_CACHE_C)
@@ -234,6 +299,7 @@ __hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 	mbedtls_x509_crt_free(&ctx->ca_cert);
 	mbedtls_x509_crt_free(&ctx->cert);
 	mbedtls_ssl_config_free(&ctx->conf);
+	free(ctx->ciphersuites);
 	free(ctx);
 }
 

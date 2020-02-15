@@ -38,6 +38,7 @@ struct ustream_ssl_ctx *__ustream_ssl_context_new(bool server);
 int __ustream_ssl_add_ca_crt_file(struct ustream_ssl_ctx *ctx, const char *file);
 int __ustream_ssl_set_crt_file(struct ustream_ssl_ctx *ctx, const char *file);
 int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char *file);
+int __ustream_ssl_set_ciphers(struct ustream_ssl_ctx *ctx, const char *ciphers);
 void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx);
 enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us);
 int __ustream_ssl_read(struct ustream_ssl *us, char *buf, int len);

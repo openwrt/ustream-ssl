@@ -56,6 +56,8 @@ struct ustream_ssl_ops {
 
 	int (*init)(struct ustream_ssl *us, struct ustream *conn, struct ustream_ssl_ctx *ctx, bool server);
 	int (*set_peer_cn)(struct ustream_ssl *conn, const char *name);
+
+	int (*context_set_ciphers)(struct ustream_ssl_ctx *ctx, const char *ciphers);
 };
 
 extern const struct ustream_ssl_ops ustream_ssl_ops;
@@ -64,6 +66,7 @@ extern const struct ustream_ssl_ops ustream_ssl_ops;
 #define ustream_ssl_context_set_crt_file	ustream_ssl_ops.context_set_crt_file
 #define ustream_ssl_context_set_key_file	ustream_ssl_ops.context_set_key_file
 #define ustream_ssl_context_add_ca_crt_file	ustream_ssl_ops.context_add_ca_crt_file
+#define ustream_ssl_context_set_ciphers		ustream_ssl_ops.context_set_ciphers
 #define ustream_ssl_context_free		ustream_ssl_ops.context_free
 #define ustream_ssl_init			ustream_ssl_ops.init
 #define ustream_ssl_set_peer_cn			ustream_ssl_ops.set_peer_cn
