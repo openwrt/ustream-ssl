@@ -266,6 +266,8 @@ __hidden enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us)
 	void *ssl = us->ssl;
 	int r;
 
+	ERR_clear_error();
+
 	if (us->server)
 		r = SSL_accept(ssl);
 	else
@@ -287,7 +289,11 @@ __hidden enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us)
 __hidden int __ustream_ssl_write(struct ustream_ssl *us, const char *buf, int len)
 {
 	void *ssl = us->ssl;
-	int ret = SSL_write(ssl, buf, len);
+	int ret;
+
+	ERR_clear_error();
+
+	ret = SSL_write(ssl, buf, len);
 
 	if (ret < 0) {
 		int err = SSL_get_error(ssl, ret);
@@ -303,7 +309,11 @@ __hidden int __ustream_ssl_write(struct ustream_ssl *us, const char *buf, int le
 
 __hidden int __ustream_ssl_read(struct ustream_ssl *us, char *buf, int len)
 {
-	int ret = SSL_read(us->ssl, buf, len);
+	int ret;
+
+	ERR_clear_error();
+
+	ret = SSL_read(us->ssl, buf, len);
 
 	if (ret < 0) {
 		ret = SSL_get_error(us->ssl, ret);
