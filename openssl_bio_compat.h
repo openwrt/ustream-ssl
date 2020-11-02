@@ -28,6 +28,13 @@ static inline BIO_METHOD *BIO_meth_new(int type, const char *name)
 	return bm;
 }
 
+static inline void BIO_meth_free(BIO_METHOD *bm)
+{
+	if (bm != NULL) {
+		free(bm);
+	}
+}
+
 #endif /* OPENSSL_VERSION_NUMBER */
 
 #endif /* OPENSSL_BIO_COMPAT_H */
