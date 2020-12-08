@@ -1,0 +1,30 @@
+variables:
+  CI_TARGET_BUILD_DEPENDS: libubox openssl
+
+include:
+  - remote: https://gitlab.com/ynezz/openwrt-ci/raw/master/openwrt-ci/gitlab/main.yml
+
+various native checks with ustream-ssl/OpenSSL backend:
+  extends: .openwrt-native-build
+
+various native checks with ustream-ssl/mbedTLS backend:
+  extends: .openwrt-native-build
+  variables:
+    CI_CMAKE_EXTRA_BUILD_ARGS: -DMBEDTLS=on
+
+various native checks with ustream-ssl/wolfSSL backend:
+  extends: .openwrt-native-build
+  variables:
+    CI_CMAKE_EXTRA_BUILD_ARGS: -DWOLFSSL=on
+
+build with Atheros ATH79 SDK (out of tree):
+  extends: .openwrt-sdk-oot-build_ath79-generic
+
+build with Freescale i.MX 6 SDK (out of tree):
+  extends: .openwrt-sdk-oot-build_imx6-generic
+
+build with MIPS Malta CoreLV BE SDK (out of tree):
+  extends: .openwrt-sdk-oot-build_malta-be
+
+build with Marvell Armada Cortex A-53 SDK (out of tree):
+  extends: .openwrt-sdk-oot-build_mvebu-cortexa53
