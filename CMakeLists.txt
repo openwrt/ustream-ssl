@@ -34,9 +34,10 @@ ENDIF()
 
 FIND_PATH(ubox_include_dir libubox/ustream.h)
 INCLUDE_DIRECTORIES(${ubox_include_dir})
+FIND_LIBRARY(ubox_library NAMES ubox)
 
 ADD_LIBRARY(ustream-ssl SHARED ustream-ssl.c ${SSL_SRC})
-TARGET_LINK_LIBRARIES(ustream-ssl ubox ${SSL_LIB})
+TARGET_LINK_LIBRARIES(ustream-ssl ${ubox_library} ${SSL_LIB})
 
 ADD_EXECUTABLE(ustream-example-server ustream-example-server.c)
 TARGET_LINK_LIBRARIES(ustream-example-server ustream-ssl)
