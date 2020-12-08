@@ -42,7 +42,6 @@ s_ustream_free(BIO *b)
 	BIO_set_data(b, NULL);
 	BIO_set_init(b, 0);
 	BIO_clear_flags(b, ~0);
-	BIO_meth_free(b->method);
 	return 1;
 }
 
