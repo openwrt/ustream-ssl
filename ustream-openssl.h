@@ -31,6 +31,11 @@
 
 void __ustream_ssl_session_free(void *ssl);
 
+struct bio_ctx {
+	BIO_METHOD *meth;
+	struct ustream *stream;
+};
+
 static inline void *__ustream_ssl_session_new(void *ctx)
 {
 	return SSL_new(ctx);

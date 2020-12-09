@@ -48,18 +48,18 @@ s_ustream_free(BIO *b)
 static int
 s_ustream_read(BIO *b, char *buf, int len)
 {
-	struct ustream *s;
+	struct bio_ctx *ctx;
 	char *sbuf;
 	int slen;
 
 	if (!buf || len <= 0)
 		return 0;
 
-	s = (struct ustream *)BIO_get_data(b);
-	if (!s)
+	ctx = (struct bio_ctx *)BIO_get_data(b);
+	if (!ctx || !ctx->stream)
 		return 0;
 
-	sbuf = ustream_get_read_buf(s, &slen);
+	sbuf = ustream_get_read_buf(ctx->stream, &slen);
 
 	BIO_clear_retry_flags(b);
 	if (!slen) {
@@ -71,7 +71,7 @@ s_ustream_read(BIO *b, char *buf, int len)
 		slen = len;
 
 	memcpy(buf, sbuf, slen);
-	ustream_consume(s, slen);
+	ustream_consume(ctx->stream, slen);
 
 	return slen;
 }
@@ -79,19 +79,19 @@ s_ustream_read(BIO *b, char *buf, int len)
 static int
 s_ustream_write(BIO *b, const char *buf, int len)
 {
-	struct ustream *s;
+	struct bio_ctx *ctx;
 
 	if (!buf || len <= 0)
 		return 0;
 
-	s = (struct ustream *)BIO_get_data(b);
-	if (!s)
+	ctx = (struct bio_ctx *)BIO_get_data(b);
+	if (!ctx || !ctx->stream)
 		return 0;
 
-	if (s->write_error)
+	if (ctx->stream->write_error)
 		return len;
 
-	return ustream_write(s, buf, len, false);
+	return ustream_write(ctx->stream, buf, len, false);
 }
 
 static int
@@ -119,19 +119,20 @@ static long s_ustream_ctrl(BIO *b, int cmd, long num, void *ptr)
 static BIO *ustream_bio_new(struct ustream *s)
 {
 	BIO *bio;
+	struct bio_ctx *ctx = calloc(1, sizeof(struct bio_ctx));
 
-	BIO_METHOD *methods_ustream;
+	ctx->stream = s;
+	ctx->meth = BIO_meth_new(100 | BIO_TYPE_SOURCE_SINK, "ustream");
 
-	methods_ustream = BIO_meth_new(100 | BIO_TYPE_SOURCE_SINK, "ustream");
-	BIO_meth_set_write(methods_ustream, s_ustream_write);
-	BIO_meth_set_read(methods_ustream, s_ustream_read);
-	BIO_meth_set_puts(methods_ustream, s_ustream_puts);
-	BIO_meth_set_gets(methods_ustream, s_ustream_gets);
-	BIO_meth_set_ctrl(methods_ustream, s_ustream_ctrl);
-	BIO_meth_set_create(methods_ustream, s_ustream_new);
-	BIO_meth_set_destroy(methods_ustream, s_ustream_free);
-	bio = BIO_new(methods_ustream);
-	BIO_set_data(bio, s);
+	BIO_meth_set_write(ctx->meth, s_ustream_write);
+	BIO_meth_set_read(ctx->meth, s_ustream_read);
+	BIO_meth_set_puts(ctx->meth, s_ustream_puts);
+	BIO_meth_set_gets(ctx->meth, s_ustream_gets);
+	BIO_meth_set_ctrl(ctx->meth, s_ustream_ctrl);
+	BIO_meth_set_create(ctx->meth, s_ustream_new);
+	BIO_meth_set_destroy(ctx->meth, s_ustream_free);
+	bio = BIO_new(ctx->meth);
+	BIO_set_data(bio, ctx);
 
 	return bio;
 }

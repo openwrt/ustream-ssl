@@ -210,8 +210,15 @@ __hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 
 void __ustream_ssl_session_free(void *ssl)
 {
+	BIO *bio = SSL_get_wbio(ssl);
+	struct bio_ctx *ctx = BIO_get_data(bio);
+
 	SSL_shutdown(ssl);
 	SSL_free(ssl);
+	if (ctx) {
+		BIO_meth_free(ctx->meth);
+		free(ctx);
+	}
 }
 
 static void ustream_ssl_error(struct ustream_ssl *us, int ret)
