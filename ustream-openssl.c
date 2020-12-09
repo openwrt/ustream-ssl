@@ -130,7 +130,15 @@ __ustream_ssl_context_new(bool server)
 	if (!c)
 		return NULL;
 
+#if defined(HAVE_WOLFSSL)
+	if (server)
+		SSL_CTX_set_verify(c, SSL_VERIFY_NONE, NULL);
+	else
+		SSL_CTX_set_verify(c, SSL_VERIFY_PEER, NULL);
+#else
 	SSL_CTX_set_verify(c, SSL_VERIFY_NONE, NULL);
+#endif
+
 	SSL_CTX_set_options(c, SSL_OP_NO_COMPRESSION | SSL_OP_SINGLE_ECDH_USE |
 			       SSL_OP_CIPHER_SERVER_PREFERENCE);
 #if defined(SSL_CTX_set_ecdh_auto) && OPENSSL_VERSION_NUMBER < 0x10100000L
@@ -203,6 +211,18 @@ __hidden int __ustream_ssl_set_ciphers(struct ustream_ssl_ctx *ctx, const char *
 	return 0;
 }
 
+__hidden int __ustream_ssl_set_require_validation(struct ustream_ssl_ctx *ctx, bool require)
+{
+	int mode = SSL_VERIFY_PEER;
+
+	if (!require)
+		mode = SSL_VERIFY_NONE;
+
+	SSL_CTX_set_verify((void *) ctx, mode, NULL);
+
+	return 0;
+}
+
 __hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 {
 	SSL_CTX_free((void *) ctx);
@@ -270,6 +290,54 @@ static void ustream_ssl_verify_cert(struct ustream_ssl *us)
 	X509_free(cert);
 }
 
+#ifdef WOLFSSL_SSL_H
+static bool handle_wolfssl_asn_error(struct ustream_ssl *us, int r)
+{
+	switch (r) {
+	case ASN_PARSE_E:
+	case ASN_VERSION_E:
+	case ASN_GETINT_E:
+	case ASN_RSA_KEY_E:
+	case ASN_OBJECT_ID_E:
+	case ASN_TAG_NULL_E:
+	case ASN_EXPECT_0_E:
+	case ASN_BITSTR_E:
+	case ASN_UNKNOWN_OID_E:
+	case ASN_DATE_SZ_E:
+	case ASN_BEFORE_DATE_E:
+	case ASN_AFTER_DATE_E:
+	case ASN_SIG_OID_E:
+	case ASN_TIME_E:
+	case ASN_INPUT_E:
+	case ASN_SIG_CONFIRM_E:
+	case ASN_SIG_HASH_E:
+	case ASN_SIG_KEY_E:
+	case ASN_DH_KEY_E:
+	case ASN_NTRU_KEY_E:
+	case ASN_CRIT_EXT_E:
+	case ASN_ALT_NAME_E:
+	case ASN_NO_PEM_HEADER:
+	case ASN_ECC_KEY_E:
+	case ASN_NO_SIGNER_E:
+	case ASN_CRL_CONFIRM_E:
+	case ASN_CRL_NO_SIGNER_E:
+	case ASN_OCSP_CONFIRM_E:
+	case ASN_NAME_INVALID_E:
+	case ASN_NO_SKID:
+	case ASN_NO_AKID:
+	case ASN_NO_KEYUSAGE:
+	case ASN_COUNTRY_SIZE_E:
+	case ASN_PATHLEN_SIZE_E:
+	case ASN_PATHLEN_INV_E:
+	case ASN_SELF_SIGNED_E:
+		if (us->notify_verify_error)
+			us->notify_verify_error(us, r, wc_GetErrorString(r));
+		return true;
+	}
+
+	return false;
+}
+#endif
 
 __hidden enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us)
 {
@@ -291,6 +359,11 @@ __hidden enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us)
 	r = SSL_get_error(ssl, r);
 	if (r == SSL_ERROR_WANT_READ || r == SSL_ERROR_WANT_WRITE)
 		return U_SSL_PENDING;
+
+#ifdef WOLFSSL_SSL_H
+	if (handle_wolfssl_asn_error(us, r))
+		return U_SSL_OK;
+#endif
 
 	ustream_ssl_error(us, r);
 	return U_SSL_ERROR;

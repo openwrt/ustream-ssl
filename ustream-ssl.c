@@ -232,6 +232,7 @@ const struct ustream_ssl_ops ustream_ssl_ops = {
 	.context_set_key_file = __ustream_ssl_set_key_file,
 	.context_add_ca_crt_file = __ustream_ssl_add_ca_crt_file,
 	.context_set_ciphers = __ustream_ssl_set_ciphers,
+	.context_set_require_validation = __ustream_ssl_set_require_validation,
 	.context_free = __ustream_ssl_context_free,
 	.init = _ustream_ssl_init,
 	.set_peer_cn = _ustream_ssl_set_peer_cn,
