@@ -37,7 +37,7 @@ static int s_ustream_read(void *ctx, unsigned char *buf, size_t len)
 		return 0;
 
 	sbuf = ustream_get_read_buf(s, &slen);
-	if (slen > len)
+	if ((size_t) slen > len)
 		slen = len;
 
 	if (!slen)
