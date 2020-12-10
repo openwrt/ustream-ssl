@@ -21,10 +21,12 @@
 
 #if defined(HAVE_WOLFSSL)
 #include <wolfssl/options.h>
-#endif
-
+#include <wolfssl/openssl/ssl.h>
+#else
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#endif
+
 #include <stdbool.h>
 
 void __ustream_ssl_session_free(void *ssl);

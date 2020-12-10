@@ -20,7 +20,10 @@
 #include <ctype.h>
 #include "ustream-ssl.h"
 #include "ustream-internal.h"
+
+#if !defined(HAVE_WOLFSSL)
 #include <openssl/x509v3.h>
+#endif
 
 /* Ciphersuite preference:
  * - for server, no weak ciphers are used if you use an ECDSA key.
