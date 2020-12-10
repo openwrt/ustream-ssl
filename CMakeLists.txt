@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 2.6)
 
-INCLUDE(CheckSymbolExists)
-
 PROJECT(ustream-ssl C)
 
 ADD_DEFINITIONS(-Os -Wall -Werror --std=gnu99 -g3)
@@ -26,17 +24,6 @@ ELSEIF(WOLFSSL)
   SET(SSL_SRC ustream-io-wolfssl.c ustream-openssl.c)
   SET(SSL_LIB ${wolfssl_library} m)
   SET(CMAKE_REQUIRED_LIBRARIES "${wolfssl_library} -lm")
-  CHECK_SYMBOL_EXISTS (wolfSSL_SSLSetIORecv "wolfssl/ssl.h"
-		       HAVE_WOLFSSL_SSLSETIORECV)
-  IF (NOT HAVE_WOLFSSL_SSLSETIORECV)
-    ADD_DEFINITIONS(-DNO_WOLFSSL_SSLSETIO_SEND_RECV)
-  ENDIF()
-  CHECK_SYMBOL_EXISTS (wolfSSL_X509_check_host
-		       "wolfssl/options.h;wolfssl/ssl.h"
-		       HAVE_WOLFSSL_X509_CHECK_HOST)
-  IF (NOT HAVE_WOLFSSL_X509_CHECK_HOST)
-    ADD_DEFINITIONS(-DNO_X509_CHECK_HOST)
-  ENDIF()
 ELSE()
   SET(SSL_SRC ustream-io-openssl.c ustream-openssl.c)
   SET(SSL_LIB crypto ssl)

@@ -247,8 +247,6 @@ static void ustream_ssl_error(struct ustream_ssl *us, int ret)
 	uloop_timeout_set(&us->error_timer, 0);
 }
 
-#ifndef NO_X509_CHECK_HOST
-
 static bool ustream_ssl_verify_cn(struct ustream_ssl *us, X509 *cert)
 {
 	int ret;
@@ -263,8 +261,6 @@ static bool ustream_ssl_verify_cn(struct ustream_ssl *us, X509 *cert)
 # endif
 	return ret == 1;
 }
-
-#endif
 
 static void ustream_ssl_verify_cert(struct ustream_ssl *us)
 {
@@ -284,9 +280,8 @@ static void ustream_ssl_verify_cert(struct ustream_ssl *us)
 		return;
 
 	us->valid_cert = true;
-#ifndef NO_X509_CHECK_HOST
 	us->valid_cn = ustream_ssl_verify_cn(us, cert);
-#endif
+
 	X509_free(cert);
 }
 
