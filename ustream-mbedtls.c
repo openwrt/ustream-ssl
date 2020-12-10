@@ -290,6 +290,18 @@ __hidden int __ustream_ssl_set_ciphers(struct ustream_ssl_ctx *ctx, const char *
 	return 0;
 }
 
+__hidden int __ustream_ssl_set_require_validation(struct ustream_ssl_ctx *ctx, bool require)
+{
+	int mode = MBEDTLS_SSL_VERIFY_OPTIONAL;
+
+	if (!require)
+		mode = MBEDTLS_SSL_VERIFY_NONE;
+
+	mbedtls_ssl_conf_authmode(&ctx->conf, mode);
+
+	return 0;
+}
+
 __hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 {
 #if defined(MBEDTLS_SSL_CACHE_C)
