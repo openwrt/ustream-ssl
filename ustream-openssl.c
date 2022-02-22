@@ -25,6 +25,10 @@
 #include <openssl/x509v3.h>
 #endif
 
+#if defined(HAVE_WOLFSSL) && defined(DEBUG)
+#include <wolfssl/test.h>
+#endif
+
 /* Ciphersuite preference:
  * - for server, no weak ciphers are used if you use an ECDSA key.
  * - forward-secret (pfs), authenticated (AEAD) ciphers are at the top:
@@ -267,6 +271,10 @@ static void ustream_ssl_verify_cert(struct ustream_ssl *us)
 	void *ssl = us->ssl;
 	X509 *cert;
 	int res;
+
+#if defined(HAVE_WOLFSSL) && defined(DEBUG)
+	showPeer(ssl);
+#endif
 
 	res = SSL_get_verify_result(ssl);
 	if (res != X509_V_OK) {

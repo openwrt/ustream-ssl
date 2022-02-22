@@ -42,6 +42,8 @@ TARGET_LINK_LIBRARIES(ustream-example-server ustream-ssl)
 ADD_EXECUTABLE(ustream-example-client ustream-example-client.c)
 TARGET_LINK_LIBRARIES(ustream-example-client ustream-ssl)
 
+TARGET_COMPILE_DEFINITIONS(ustream-ssl PRIVATE $<$<CONFIG:Debug>:DEBUG>)
+
 INSTALL(FILES ustream-ssl.h
 	DESTINATION include/libubox
 )
