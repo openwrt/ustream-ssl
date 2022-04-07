@@ -20,8 +20,8 @@ various native checks with ustream-ssl/wolfSSL backend:
 build with Atheros ATH79 SDK (out of tree):
   extends: .openwrt-sdk-oot-build_ath79-generic
 
-build with Freescale i.MX 6 SDK (out of tree):
-  extends: .openwrt-sdk-oot-build_imx6-generic
+build with Freescale i.MX Cortex-A9 SDK (out of tree):
+  extends: .openwrt-sdk-oot-build_imx-cortexa9
 
 build with MIPS Malta CoreLV BE SDK (out of tree):
   extends: .openwrt-sdk-oot-build_malta-be
