@@ -157,6 +157,12 @@ __ustream_ssl_context_new(bool server)
 		SSL_CTX_set_options(c, SSL_OP_NO_SSLv3 | SSL_OP_NO_TLSv1 |
 				       SSL_OP_NO_TLSv1_1);
 #endif
+#if defined(HAVE_WOLFSSL)
+		SSL_CTX_set_options(c, SSL_AD_NO_RENEGOTIATION);
+#else
+		SSL_CTX_set_options(c, SSL_OP_NO_RENEGOTIATION);
+#endif
+
 		SSL_CTX_set_cipher_list(c, server_cipher_list);
 	} else {
 		SSL_CTX_set_cipher_list(c, client_cipher_list);
