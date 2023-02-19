@@ -17,6 +17,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/random.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -24,8 +25,6 @@
 
 #include "ustream-ssl.h"
 #include "ustream-internal.h"
-
-static int urandom_fd = -1;
 
 static int s_ustream_read(void *ctx, unsigned char *buf, size_t len)
 {
@@ -66,21 +65,12 @@ __hidden void ustream_set_io(struct ustream_ssl_ctx *ctx, void *ssl, struct ustr
 	mbedtls_ssl_set_bio(ssl, conn, s_ustream_write, s_ustream_read, NULL);
 }
 
-static bool urandom_init(void)
+static int _random(void *ctx, unsigned char *out, size_t len)
 {
-	if (urandom_fd > -1)
-		return true;
+	ssize_t ret;
 
-	urandom_fd = open("/dev/urandom", O_RDONLY);
-	if (urandom_fd < 0)
-		return false;
-
-	return true;
-}
-
-static int _urandom(void *ctx, unsigned char *out, size_t len)
-{
-	if (read(urandom_fd, out, len) < 0)
+	ret = getrandom(out, len, 0);
+	if (ret < 0 || (size_t)ret != len)
 		return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
 
 	return 0;
@@ -134,9 +124,6 @@ __ustream_ssl_context_new(bool server)
 	mbedtls_ssl_config *conf;
 	int ep;
 
-	if (!urandom_init())
-		return NULL;
-
 	ctx = calloc(1, sizeof(*ctx));
 	if (!ctx)
 		return NULL;
@@ -159,7 +146,7 @@ __ustream_ssl_context_new(bool server)
 
 	mbedtls_ssl_config_defaults(conf, ep, MBEDTLS_SSL_TRANSPORT_STREAM,
 				    MBEDTLS_SSL_PRESET_DEFAULT);
-	mbedtls_ssl_conf_rng(conf, _urandom, NULL);
+	mbedtls_ssl_conf_rng(conf, _random, NULL);
 
 	if (server) {
 		mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_NONE);
