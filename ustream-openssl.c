@@ -103,20 +103,41 @@
 				non_pfs_aes ":"				\
 				"DES-CBC3-SHA"
 
+#define perr _perr(__LINE__)
+static void _perr(int line)
+{
+#ifdef DEBUG
+	long err;
+	char buf[512];
+
+	while ((err = ERR_get_error())) {
+		ERR_error_string_n(err, buf, sizeof(buf));
+		fprintf(stderr, "%d %s\n", line, buf);
+	}
+#endif
+}
+
 __hidden struct ustream_ssl_ctx *
 __ustream_ssl_context_new(bool server)
 {
 	const void *m;
 	SSL_CTX *c;
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
 	static bool _init = false;
 
 	if (!_init) {
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 		SSL_load_error_strings();
 		SSL_library_init();
+#else
+		OPENSSL_init_ssl(OPENSSL_INIT_LOAD_SSL_STRINGS, NULL);
+#endif
+
+		perr;
 		_init = true;
 	}
+
+#if OPENSSL_VERSION_NUMBER < 0x10100000L
 # ifndef TLS_server_method
 #  define TLS_server_method SSLv23_server_method
 # endif
@@ -130,7 +151,12 @@ __ustream_ssl_context_new(bool server)
 	} else
 		m = TLS_client_method();
 
+	perr;
 	c = SSL_CTX_new((void *) m);
+#ifdef DEBUG
+	fprintf(stderr, "ctx=%p\n", c);
+#endif
+	perr;
 	if (!c)
 		return NULL;
 
