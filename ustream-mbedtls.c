@@ -26,6 +26,26 @@
 #include "ustream-ssl.h"
 #include "ustream-internal.h"
 
+#if defined(MBEDTLS_DEBUG_C)
+#include <mbedtls/debug.h>
+#include <stdio.h>
+static void debug_print(void *ctx, int level, const char *file, int line,
+						const char *str)
+{
+	const char *p, *basename;
+	(void) ctx;
+
+	/* Extract basename from file */
+	for(p = basename = file; *p != '\0'; p++) {
+		if(*p == '/' || *p == '\\') {
+			basename = p + 1;
+		}
+	}
+
+	printf("%s:%04d: |%d| %s", basename, line, level, str);
+}
+#endif
+
 static int s_ustream_read(void *ctx, unsigned char *buf, size_t len)
 {
 	struct ustream *s = ctx;
@@ -101,6 +121,11 @@ static const int default_ciphersuites_server[] =
 
 static const int default_ciphersuites_client[] =
 {
+#ifdef MBEDTLS_SSL_PROTO_TLS1_3
+	MBEDTLS_TLS1_3_CHACHA20_POLY1305_SHA256,
+	MBEDTLS_TLS1_3_AES_128_GCM_SHA256,
+	MBEDTLS_TLS1_3_AES_256_GCM_SHA384,
+#endif
 	MBEDTLS_TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256,
 	AES_GCM_CIPHERS(ECDHE_ECDSA),
 	MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
@@ -127,6 +152,11 @@ __ustream_ssl_context_new(bool server)
 		return NULL;
 
 	ctx->server = server;
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
+	if(psa_crypto_init() != PSA_SUCCESS) {
+		return NULL;
+	}
+#endif
 	mbedtls_pk_init(&ctx->key);
 	mbedtls_x509_crt_init(&ctx->cert);
 	mbedtls_x509_crt_init(&ctx->ca_cert);
@@ -139,27 +169,35 @@ __ustream_ssl_context_new(bool server)
 
 	conf = &ctx->conf;
 	mbedtls_ssl_config_init(conf);
+#if defined(MBEDTLS_DEBUG_C)
+	mbedtls_ssl_conf_dbg(conf, debug_print, NULL);
+	mbedtls_debug_set_threshold(4);
+#endif
 
 	ep = server ? MBEDTLS_SSL_IS_SERVER : MBEDTLS_SSL_IS_CLIENT;
 
 	mbedtls_ssl_config_defaults(conf, ep, MBEDTLS_SSL_TRANSPORT_STREAM,
-				    MBEDTLS_SSL_PRESET_DEFAULT);
+					MBEDTLS_SSL_PRESET_DEFAULT);
 	mbedtls_ssl_conf_rng(conf, _random, NULL);
+#if defined(MBEDTLS_SSL_PROTO_TLS1_3)
+	mbedtls_ssl_conf_tls13_key_exchange_modes(conf, MBEDTLS_SSL_TLS1_3_KEY_EXCHANGE_MODE_ALL);
+#endif
 
 	if (server) {
 		mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_NONE);
 		mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites_server);
 		mbedtls_ssl_conf_min_version(conf, MBEDTLS_SSL_MAJOR_VERSION_3,
-					     MBEDTLS_SSL_MINOR_VERSION_3);
+						 MBEDTLS_SSL_MINOR_VERSION_3);
 	} else {
-		mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
+		mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_REQUIRED);
 		mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites_client);
+		mbedtls_ssl_conf_session_tickets(conf, MBEDTLS_SSL_SESSION_TICKETS_DISABLED);
 	}
 
 #if defined(MBEDTLS_SSL_CACHE_C)
 	mbedtls_ssl_conf_session_cache(conf, &ctx->cache,
-				       mbedtls_ssl_cache_get,
-				       mbedtls_ssl_cache_set);
+					   mbedtls_ssl_cache_get,
+					   mbedtls_ssl_cache_set);
 #endif
 	return ctx;
 }
@@ -204,11 +242,10 @@ __hidden int __ustream_ssl_set_crt_file(struct ustream_ssl_ctx *ctx, const char 
 __hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char *file)
 {
 	int ret;
-// because we striped version info from mbedtls, use a const that removed in mbedtls 3.X
-#if defined(MBEDTLS_DHM_RFC5114_MODP_2048_P)
-	ret = mbedtls_pk_parse_keyfile(&ctx->key, file, NULL);
-#else
+#if MBEDTLS_VERSION_NUMBER >= 0x03000000
 	ret = mbedtls_pk_parse_keyfile(&ctx->key, file, NULL, _random, NULL);
+#else
+	ret = mbedtls_pk_parse_keyfile(&ctx->key, file, NULL);
 #endif
 	if (ret)
 		return -1;
@@ -284,10 +321,15 @@ __hidden int __ustream_ssl_set_ciphers(struct ustream_ssl_ctx *ctx, const char *
 
 __hidden int __ustream_ssl_set_require_validation(struct ustream_ssl_ctx *ctx, bool require)
 {
-	int mode = MBEDTLS_SSL_VERIFY_OPTIONAL;
+	int mode = MBEDTLS_SSL_VERIFY_REQUIRED;
 
-	if (!require)
+	if (!require) {
 		mode = MBEDTLS_SSL_VERIFY_NONE;
+#if defined(MBEDTLS_SS_PROTO_TLS1_3)
+	// mbedtls 3.X does not allow skiping cert verify in tls 1.3 context, downgrade here
+		mbedtls_ssl_conf_max_tls_version(conf, MBEDTLS_SSL_VERSION_TLS1_2);
+#endif
+	}
 
 	mbedtls_ssl_conf_authmode(&ctx->conf, mode);
 
@@ -361,8 +403,13 @@ __hidden enum ssl_conn_status __ustream_ssl_connect(struct ustream_ssl *us)
 
 	r = mbedtls_ssl_handshake(ssl);
 	if (r == 0) {
-		ustream_ssl_verify_cert(us);
 		return U_SSL_OK;
+	}
+	
+	if (r == MBEDTLS_ERR_X509_CERT_VERIFY_FAILED ||
+         r == MBEDTLS_ERR_SSL_BAD_CERTIFICATE) {
+			ustream_ssl_verify_cert(us);
+		return U_SSL_ERROR;
 	}
 
 	if (ssl_do_wait(r))
