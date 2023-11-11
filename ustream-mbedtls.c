@@ -110,9 +110,15 @@ static const int default_ciphersuites_client[] =
 	AES_CBC_CIPHERS(ECDHE_ECDSA),
 	AES_CBC_CIPHERS(ECDHE_RSA),
 	AES_CBC_CIPHERS(DHE_RSA),
+/* Removed in Mbed TLS 3.0.0 */
+#ifdef MBEDTLS_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
 	MBEDTLS_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,
+#endif
 	AES_CIPHERS(RSA),
+/* Removed in Mbed TLS 3.0.0 */
+#ifdef MBEDTLS_TLS_RSA_WITH_3DES_EDE_CBC_SHA
 	MBEDTLS_TLS_RSA_WITH_3DES_EDE_CBC_SHA,
+#endif
 	0
 };
 
@@ -171,7 +177,7 @@ static void ustream_ssl_update_own_cert(struct ustream_ssl_ctx *ctx)
 	if (!ctx->cert.version)
 		return;
 
-	if (!ctx->key.pk_info)
+	if (mbedtls_pk_get_type(&ctx->key) == MBEDTLS_PK_NONE)
 		return;
 
 	mbedtls_ssl_conf_own_cert(&ctx->conf, &ctx->cert, &ctx->key);
@@ -206,7 +212,11 @@ __hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char 
 {
 	int ret;
 
+#if (MBEDTLS_VERSION_NUMBER >= 0x03000000)
+	ret = mbedtls_pk_parse_keyfile(&ctx->key, file, NULL, _random, NULL);
+#else
 	ret = mbedtls_pk_parse_keyfile(&ctx->key, file, NULL);
+#endif
 	if (ret)
 		return -1;
 
