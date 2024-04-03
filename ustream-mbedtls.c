@@ -25,6 +25,7 @@
 
 #include "ustream-ssl.h"
 #include "ustream-internal.h"
+#include <psa/crypto.h>
 
 static int s_ustream_read(void *ctx, unsigned char *buf, size_t len)
 {
@@ -135,6 +136,13 @@ __ustream_ssl_context_new(bool server)
 	struct ustream_ssl_ctx *ctx;
 	mbedtls_ssl_config *conf;
 	int ep;
+
+#ifdef MBEDTLS_PSA_CRYPTO_C
+	static bool psa_init;
+
+	if (!psa_init && !psa_crypto_init())
+		psa_init = true;
+#endif
 
 	ctx = calloc(1, sizeof(*ctx));
 	if (!ctx)
