@@ -25,6 +25,7 @@
 
 #include "ustream-ssl.h"
 #include "ustream-internal.h"
+#include <psa/crypto.h>
 
 #if defined(MBEDTLS_DEBUG_C)
 #include <mbedtls/debug.h>
@@ -87,11 +88,17 @@ __hidden void ustream_set_io(struct ustream_ssl_ctx *ctx, void *ssl, struct ustr
 
 static int _random(void *ctx, unsigned char *out, size_t len)
 {
-	ssize_t ret;
-
-	ret = getrandom(out, len, 0);
-	if (ret < 0 || (size_t)ret != len)
+#ifdef linux
+	if (getrandom(out, len, 0) != (ssize_t) len)
 		return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
+#else
+	static FILE *f;
+
+	if (!f)
+		f = fopen("/dev/urandom", "r");
+	if (fread(out, len, 1, f) != 1)
+		return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
+#endif
 
 	return 0;
 }
@@ -146,6 +153,13 @@ __ustream_ssl_context_new(bool server)
 	struct ustream_ssl_ctx *ctx;
 	mbedtls_ssl_config *conf;
 	int ep;
+
+#ifdef MBEDTLS_PSA_CRYPTO_C
+	static bool psa_init;
+
+	if (!psa_init && !psa_crypto_init())
+		psa_init = true;
+#endif
 
 	ctx = calloc(1, sizeof(*ctx));
 	if (!ctx)
