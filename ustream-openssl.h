@@ -29,6 +29,13 @@
 
 #include <stdbool.h>
 
+struct ustream_ssl_ctx {
+	SSL_CTX *ssl;
+	BIO *debug_bio;
+	ustream_ssl_debug_cb debug_cb;
+	void *debug_cb_priv;
+};
+
 void __ustream_ssl_session_free(void *ssl);
 
 struct bio_ctx {
@@ -36,9 +43,9 @@ struct bio_ctx {
 	struct ustream *stream;
 };
 
-static inline void *__ustream_ssl_session_new(void *ctx)
+static inline void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx)
 {
-	return SSL_new(ctx);
+	return SSL_new(ctx->ssl);
 }
 
 static inline char *__ustream_ssl_strerror(int error, char *buffer, int len)

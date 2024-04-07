@@ -26,6 +26,30 @@
 #include "ustream-ssl.h"
 #include "ustream-internal.h"
 #include <psa/crypto.h>
+#include <mbedtls/debug.h>
+
+static void debug_cb(void *ctx_p, int level,
+                     const char *file, int line,
+                     const char *str)
+{
+	struct ustream_ssl_ctx *ctx = ctx_p;
+	const char *fstr;
+	char buf[512];
+	int len;
+
+	if (!ctx->debug_cb)
+		return;
+
+	while ((fstr = strstr(file + 1, "library/")) != NULL)
+		file = fstr;
+
+	len = snprintf(buf, sizeof(buf), "%s:%04d: %s", file, line, str);
+	if (len >= (int)sizeof(buf))
+		len = (int)sizeof(buf) - 1;
+	if (buf[len - 1] == '\n')
+		buf[len - 1] = 0;
+	ctx->debug_cb(ctx->debug_cb_priv, level, buf);
+}
 
 static int s_ustream_read(void *ctx, unsigned char *buf, size_t len)
 {
@@ -431,6 +455,15 @@ __hidden int __ustream_ssl_read(struct ustream_ssl *us, char *buf, int len)
 	}
 
 	return ret;
+}
+
+__hidden void __ustream_ssl_set_debug(struct ustream_ssl_ctx *ctx, int level,
+				      ustream_ssl_debug_cb cb, void *cb_priv)
+{
+	ctx->debug_cb = cb;
+	ctx->debug_cb_priv = cb_priv;
+	mbedtls_ssl_conf_dbg(&ctx->conf, debug_cb, ctx);
+	mbedtls_debug_set_threshold(level);
 }
 
 __hidden void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx)

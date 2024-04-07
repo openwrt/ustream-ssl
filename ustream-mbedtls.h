@@ -39,6 +39,8 @@ struct ustream_ssl_ctx {
 #if defined(MBEDTLS_SSL_CACHE_C)
 	mbedtls_ssl_cache_context cache;
 #endif
+	ustream_ssl_debug_cb debug_cb;
+	void *debug_cb_priv;
 	bool server;
 	int *ciphersuites;
 };

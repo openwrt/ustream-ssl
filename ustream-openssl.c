@@ -106,6 +106,7 @@
 __hidden struct ustream_ssl_ctx *
 __ustream_ssl_context_new(bool server)
 {
+	struct ustream_ssl_ctx *ctx;
 	const void *m;
 	SSL_CTX *c;
 
@@ -133,6 +134,9 @@ __ustream_ssl_context_new(bool server)
 	c = SSL_CTX_new((void *) m);
 	if (!c)
 		return NULL;
+
+	ctx = calloc(1, sizeof(*ctx));
+	ctx->ssl = c;
 
 #if defined(HAVE_WOLFSSL)
 	if (server)
@@ -169,14 +173,14 @@ __ustream_ssl_context_new(bool server)
 	}
 	SSL_CTX_set_quiet_shutdown(c, 1);
 
-	return (void *) c;
+	return ctx;
 }
 
 __hidden int __ustream_ssl_add_ca_crt_file(struct ustream_ssl_ctx *ctx, const char *file)
 {
 	int ret;
 
-	ret = SSL_CTX_load_verify_locations((void *) ctx, file, NULL);
+	ret = SSL_CTX_load_verify_locations(ctx->ssl, file, NULL);
 	if (ret < 1)
 		return -1;
 
@@ -187,9 +191,9 @@ __hidden int __ustream_ssl_set_crt_file(struct ustream_ssl_ctx *ctx, const char 
 {
 	int ret;
 
-	ret = SSL_CTX_use_certificate_chain_file((void *) ctx, file);
+	ret = SSL_CTX_use_certificate_chain_file(ctx->ssl, file);
 	if (ret < 1)
-		ret = SSL_CTX_use_certificate_file((void *) ctx, file, SSL_FILETYPE_ASN1);
+		ret = SSL_CTX_use_certificate_file(ctx->ssl, file, SSL_FILETYPE_ASN1);
 
 	if (ret < 1)
 		return -1;
@@ -201,9 +205,9 @@ __hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char 
 {
 	int ret;
 
-	ret = SSL_CTX_use_PrivateKey_file((void *) ctx, file, SSL_FILETYPE_PEM);
+	ret = SSL_CTX_use_PrivateKey_file(ctx->ssl, file, SSL_FILETYPE_PEM);
 	if (ret < 1)
-		ret = SSL_CTX_use_PrivateKey_file((void *) ctx, file, SSL_FILETYPE_ASN1);
+		ret = SSL_CTX_use_PrivateKey_file(ctx->ssl, file, SSL_FILETYPE_ASN1);
 
 	if (ret < 1)
 		return -1;
@@ -213,7 +217,7 @@ __hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char 
 
 __hidden int __ustream_ssl_set_ciphers(struct ustream_ssl_ctx *ctx, const char *ciphers)
 {
-	int ret = SSL_CTX_set_cipher_list((void *) ctx, ciphers);
+	int ret = SSL_CTX_set_cipher_list(ctx->ssl, ciphers);
 
 	if (ret == 0)
 		return -1;
@@ -228,14 +232,17 @@ __hidden int __ustream_ssl_set_require_validation(struct ustream_ssl_ctx *ctx, b
 	if (!require)
 		mode = SSL_VERIFY_NONE;
 
-	SSL_CTX_set_verify((void *) ctx, mode, NULL);
+	SSL_CTX_set_verify(ctx->ssl, mode, NULL);
 
 	return 0;
 }
 
 __hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 {
-	SSL_CTX_free((void *) ctx);
+	SSL_CTX_free(ctx->ssl);
+	if (ctx->debug_bio)
+		BIO_free(ctx->debug_bio);
+	free(ctx);
 }
 
 void __ustream_ssl_session_free(void *ssl)
@@ -419,4 +426,62 @@ __hidden int __ustream_ssl_read(struct ustream_ssl *us, char *buf, int len)
 	}
 
 	return ret;
+}
+
+#ifndef WOLFSSL_SSL_H
+static long
+debug_cb(BIO *bio, int cmd, const char *argp, size_t len, int argi, long argl,
+	 int ret, size_t *processed)
+{
+	struct ustream_ssl_ctx *ctx = (void *)BIO_get_callback_arg(bio);
+	char buf[256];
+	char *str, *sep;
+	ssize_t cur_len;
+
+	if (cmd != (BIO_CB_WRITE|BIO_CB_RETURN))
+	    goto out;
+
+	while (1) {
+		cur_len = BIO_get_mem_data(bio, (void *)&str);
+		if (!cur_len)
+			break;
+
+		sep = memchr(str, '\n', cur_len);
+		if (!sep)
+			break;
+
+		cur_len = sep + 1 - str;
+		if (cur_len >= (ssize_t)sizeof(buf))
+			cur_len = sizeof(buf) - 1;
+
+		cur_len = BIO_read(bio, buf, cur_len);
+		if (cur_len <= 1)
+			break;
+
+		cur_len--;
+		buf[cur_len] = 0;
+		if (ctx->debug_cb)
+			ctx->debug_cb(ctx->debug_cb_priv, 1, buf);
+	}
+
+out:
+	return ret;
+}
+#endif
+
+__hidden void __ustream_ssl_set_debug(struct ustream_ssl_ctx *ctx, int level,
+				      ustream_ssl_debug_cb cb, void *cb_priv)
+{
+#ifndef WOLFSSL_SSL_H
+	if (!ctx->debug_bio)
+		ctx->debug_bio = BIO_new(BIO_s_mem());
+
+	ctx->debug_cb = cb;
+	ctx->debug_cb_priv = cb_priv;
+	SSL_CTX_set_msg_callback(ctx->ssl, SSL_trace);
+	SSL_CTX_set_msg_callback_arg(ctx->ssl, ctx->debug_bio);
+
+	BIO_set_callback_ex(ctx->debug_bio, debug_cb);
+	BIO_set_callback_arg(ctx->debug_bio, (void *)ctx);
+#endif
 }

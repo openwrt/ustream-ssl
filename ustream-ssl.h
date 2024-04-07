@@ -47,8 +47,9 @@ struct ustream_ssl {
 
 struct ustream_ssl_ctx;
 
-struct ustream_ssl_ops {
+typedef void (*ustream_ssl_debug_cb)(void *priv, int level, const char *msg);
 
+struct ustream_ssl_ops {
 	struct ustream_ssl_ctx *(*context_new)(bool server);
 	int (*context_set_crt_file)(struct ustream_ssl_ctx *ctx, const char *file);
 	int (*context_set_key_file)(struct ustream_ssl_ctx *ctx, const char *file);
@@ -59,6 +60,7 @@ struct ustream_ssl_ops {
 	int (*set_peer_cn)(struct ustream_ssl *conn, const char *name);
 
 	int (*context_set_ciphers)(struct ustream_ssl_ctx *ctx, const char *ciphers);
+	void (*context_set_debug)(struct ustream_ssl_ctx *ctx, int level, ustream_ssl_debug_cb cb, void *cb_priv);
 	int (*context_set_require_validation)(struct ustream_ssl_ctx *ctx, bool require);
 };
 
@@ -69,6 +71,7 @@ extern const struct ustream_ssl_ops ustream_ssl_ops;
 #define ustream_ssl_context_set_key_file		ustream_ssl_ops.context_set_key_file
 #define ustream_ssl_context_add_ca_crt_file		ustream_ssl_ops.context_add_ca_crt_file
 #define ustream_ssl_context_set_ciphers			ustream_ssl_ops.context_set_ciphers
+#define ustream_ssl_context_set_debug			ustream_ssl_ops.context_set_debug
 #define ustream_ssl_context_set_require_validation	ustream_ssl_ops.context_set_require_validation
 #define ustream_ssl_context_free			ustream_ssl_ops.context_free
 #define ustream_ssl_init				ustream_ssl_ops.init
