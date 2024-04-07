@@ -483,7 +483,9 @@ __hidden void __ustream_ssl_set_debug(struct ustream_ssl_ctx *ctx, int level,
 	ctx->debug_cb = cb;
 	ctx->debug_cb_priv = cb_priv;
 	mbedtls_ssl_conf_dbg(&ctx->conf, debug_cb, ctx);
+#ifdef MBEDTLS_DEBUG_C
 	mbedtls_debug_set_threshold(level);
+#endif
 }
 
 __hidden void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx)
