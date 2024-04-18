@@ -379,6 +379,7 @@ static void ustream_ssl_error(struct ustream_ssl *us, int ret)
 	uloop_timeout_set(&us->error_timer, 0);
 }
 
+#ifdef MBEDTLS_ERR_SSL_RECEIVED_NEW_SESSION_TICKET
 static void
 __ustream_ssl_save_session(struct ustream_ssl *us)
 {
@@ -402,6 +403,7 @@ __ustream_ssl_save_session(struct ustream_ssl *us)
 		ctx->session_data_len = 0;
 	mbedtls_ssl_session_free(&sess);
 }
+#endif
 
 static int ssl_check_return(struct ustream_ssl *us, int ret)
 {
@@ -409,11 +411,14 @@ static int ssl_check_return(struct ustream_ssl *us, int ret)
 	case MBEDTLS_ERR_SSL_WANT_READ:
 	case MBEDTLS_ERR_SSL_WANT_WRITE:
 		return U_SSL_PENDING;
+#ifdef MBEDTLS_ERR_SSL_RECEIVED_NEW_SESSION_TICKET
 	case MBEDTLS_ERR_SSL_RECEIVED_NEW_SESSION_TICKET:
+		__ustream_ssl_save_session(us);
+		return U_SSL_RETRY;
+#endif
 #ifdef MBEDTLS_ECP_RESTARTABLE
 	case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:
 #endif
-		__ustream_ssl_save_session(us);
 		return U_SSL_RETRY;
 	case MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY:
 	case MBEDTLS_ERR_NET_CONN_RESET:
