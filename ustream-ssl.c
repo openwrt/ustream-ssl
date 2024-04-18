@@ -84,6 +84,11 @@ static bool __ustream_ssl_poll(struct ustream *s)
 			break;
 
 		ret = __ustream_ssl_read(us, buf, len);
+		if (ret == U_SSL_PENDING) {
+			ustream_poll(us->conn);
+			ret = __ustream_ssl_read(us, buf, len);
+		}
+
 		switch (ret) {
 		case U_SSL_PENDING:
 			return more;
