@@ -418,8 +418,8 @@ static int ssl_check_return(struct ustream_ssl *us, int ret)
 #endif
 #ifdef MBEDTLS_ECP_RESTARTABLE
 	case MBEDTLS_ERR_SSL_CRYPTO_IN_PROGRESS:
-#endif
 		return U_SSL_RETRY;
+#endif
 	case MBEDTLS_ERR_SSL_PEER_CLOSE_NOTIFY:
 	case MBEDTLS_ERR_NET_CONN_RESET:
 		return 0;
