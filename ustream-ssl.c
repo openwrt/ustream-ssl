@@ -208,6 +208,7 @@ static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, struc
 	if (!us->ssl)
 		return -ENOMEM;
 
+	conn->r.max_buffers = 4;
 	conn->next = &us->stream;
 	ustream_set_io(ctx, us->ssl, conn);
 	ustream_ssl_stream_init(us);
