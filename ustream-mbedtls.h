@@ -43,6 +43,9 @@ struct ustream_ssl_ctx {
 	void *debug_cb_priv;
 	bool server;
 	int *ciphersuites;
+
+	void *session_data;
+	size_t session_data_len;
 };
 
 static inline char *__ustream_ssl_strerror(int error, char *buffer, int len)

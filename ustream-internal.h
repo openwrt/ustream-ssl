@@ -31,6 +31,7 @@ enum ssl_conn_status {
 	U_SSL_OK = 0,
 	U_SSL_PENDING = -1,
 	U_SSL_ERROR = -2,
+	U_SSL_RETRY = -3,
 };
 
 void ustream_set_io(struct ustream_ssl_ctx *ctx, void *ssl, struct ustream *s);
