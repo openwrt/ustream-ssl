@@ -64,7 +64,6 @@ static inline void __ustream_ssl_update_peer_cn(struct ustream_ssl *us)
 	mbedtls_ssl_set_hostname(us->ssl, us->peer_cn);
 }
 
-void __ustream_ssl_session_free(void *ssl);
 void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx);
 
 #endif

@@ -25,6 +25,7 @@ struct ustream_ssl {
 	struct ustream stream;
 	struct ustream *conn;
 	struct uloop_timeout error_timer;
+	struct uloop_fd fd;
 
 	void (*notify_connected)(struct ustream_ssl *us);
 	void (*notify_error)(struct ustream_ssl *us, int error, const char *str);
@@ -56,6 +57,7 @@ struct ustream_ssl_ops {
 	int (*context_add_ca_crt_file)(struct ustream_ssl_ctx *ctx, const char *file);
 	void (*context_free)(struct ustream_ssl_ctx *ctx);
 
+	int (*init_fd)(struct ustream_ssl *us, int fd, struct ustream_ssl_ctx *ctx, bool server);
 	int (*init)(struct ustream_ssl *us, struct ustream *conn, struct ustream_ssl_ctx *ctx, bool server);
 	int (*set_peer_cn)(struct ustream_ssl *conn, const char *name);
 

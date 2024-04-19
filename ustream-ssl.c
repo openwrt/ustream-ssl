@@ -67,9 +67,8 @@ static void ustream_ssl_check_conn(struct ustream_ssl *us)
 	}
 }
 
-static bool __ustream_ssl_poll(struct ustream *s)
+static bool __ustream_ssl_poll(struct ustream_ssl *us)
 {
-	struct ustream_ssl *us = container_of(s->next, struct ustream_ssl, stream);
 	char *buf;
 	int len, ret;
 	bool more = false;
@@ -85,7 +84,8 @@ static bool __ustream_ssl_poll(struct ustream *s)
 
 		ret = __ustream_ssl_read(us, buf, len);
 		if (ret == U_SSL_PENDING) {
-			ustream_poll(us->conn);
+			if (us->conn)
+				ustream_poll(us->conn);
 			ret = __ustream_ssl_read(us, buf, len);
 		}
 
@@ -110,7 +110,9 @@ static bool __ustream_ssl_poll(struct ustream *s)
 
 static void ustream_ssl_notify_read(struct ustream *s, int bytes)
 {
-	__ustream_ssl_poll(s);
+	struct ustream_ssl *us = container_of(s->next, struct ustream_ssl, stream);
+
+	__ustream_ssl_poll(us);
 }
 
 static void ustream_ssl_notify_write(struct ustream *s, int bytes)
@@ -134,7 +136,7 @@ static int ustream_ssl_write(struct ustream *s, const char *buf, int len, bool m
 	if (!us->connected || us->error)
 		return 0;
 
-	if (us->conn->w.data_bytes)
+	if (us->conn && us->conn->w.data_bytes)
 		return 0;
 
 	return __ustream_ssl_write(us, buf, len);
@@ -143,8 +145,17 @@ static int ustream_ssl_write(struct ustream *s, const char *buf, int len, bool m
 static void ustream_ssl_set_read_blocked(struct ustream *s)
 {
 	struct ustream_ssl *us = container_of(s, struct ustream_ssl, stream);
+	unsigned int ev = ULOOP_WRITE | ULOOP_EDGE_TRIGGER;
 
-	ustream_set_read_blocked(us->conn, !!s->read_blocked);
+	if (us->conn) {
+		ustream_set_read_blocked(us->conn, !!s->read_blocked);
+		return;
+	}
+
+	if (!s->read_blocked)
+		ev |= ULOOP_READ;
+
+	uloop_fd_add(&us->fd, ev);
 }
 
 static void ustream_ssl_free(struct ustream *s)
@@ -156,10 +167,12 @@ static void ustream_ssl_free(struct ustream *s)
 		us->conn->notify_read = NULL;
 		us->conn->notify_write = NULL;
 		us->conn->notify_state = NULL;
+	} else {
+		uloop_fd_delete(&us->fd);
 	}
 
 	uloop_timeout_cancel(&us->error_timer);
-	__ustream_ssl_session_free(us->ssl);
+	__ustream_ssl_session_free(us);
 	free(us->peer_cn);
 
 	us->ctx = NULL;
@@ -175,10 +188,19 @@ static void ustream_ssl_free(struct ustream *s)
 static bool ustream_ssl_poll(struct ustream *s)
 {
 	struct ustream_ssl *us = container_of(s, struct ustream_ssl, stream);
-	bool fd_poll;
+	bool fd_poll = false;
 
-	fd_poll = ustream_poll(us->conn);
-	return __ustream_ssl_poll(us->conn) || fd_poll;
+	if (us->conn)
+		fd_poll = ustream_poll(us->conn);
+
+	return __ustream_ssl_poll(us) || fd_poll;
+}
+
+static void ustream_ssl_fd_cb(struct uloop_fd *fd, unsigned int events)
+{
+	struct ustream_ssl *us = container_of(fd, struct ustream_ssl, fd);
+
+	__ustream_ssl_poll(us);
 }
 
 static void ustream_ssl_stream_init(struct ustream_ssl *us)
@@ -186,31 +208,31 @@ static void ustream_ssl_stream_init(struct ustream_ssl *us)
 	struct ustream *conn = us->conn;
 	struct ustream *s = &us->stream;
 
-	conn->notify_read = ustream_ssl_notify_read;
-	conn->notify_write = ustream_ssl_notify_write;
-	conn->notify_state = ustream_ssl_notify_state;
+	if (conn) {
+		conn->notify_read = ustream_ssl_notify_read;
+		conn->notify_write = ustream_ssl_notify_write;
+		conn->notify_state = ustream_ssl_notify_state;
+	} else {
+		us->fd.cb = ustream_ssl_fd_cb;
+		uloop_fd_add(&us->fd, ULOOP_READ | ULOOP_WRITE | ULOOP_EDGE_TRIGGER);
+	}
 
+	s->set_read_blocked = ustream_ssl_set_read_blocked;
 	s->free = ustream_ssl_free;
 	s->write = ustream_ssl_write;
 	s->poll = ustream_ssl_poll;
-	s->set_read_blocked = ustream_ssl_set_read_blocked;
 	ustream_init_defaults(s);
 }
 
-static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, struct ustream_ssl_ctx *ctx, bool server)
+static int _ustream_ssl_init_common(struct ustream_ssl *us)
 {
 	us->error_timer.cb = ustream_ssl_error_cb;
-	us->server = server;
-	us->conn = conn;
-	us->ctx = ctx;
 
 	us->ssl = __ustream_ssl_session_new(us->ctx);
 	if (!us->ssl)
 		return -ENOMEM;
 
-	conn->r.max_buffers = 4;
-	conn->next = &us->stream;
-	ustream_set_io(ctx, us->ssl, conn);
+	ustream_set_io(us);
 	ustream_ssl_stream_init(us);
 
 	if (us->server_name)
@@ -219,6 +241,27 @@ static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, struc
 	ustream_ssl_check_conn(us);
 
 	return 0;
+}
+
+static int _ustream_ssl_init_fd(struct ustream_ssl *us, int fd, struct ustream_ssl_ctx *ctx, bool server)
+{
+	us->server = server;
+	us->ctx = ctx;
+	us->fd.fd = fd;
+
+	return _ustream_ssl_init_common(us);
+}
+
+static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, struct ustream_ssl_ctx *ctx, bool server)
+{
+	us->server = server;
+	us->ctx = ctx;
+
+	us->conn = conn;
+	conn->r.max_buffers = 4;
+	conn->next = &us->stream;
+
+	return _ustream_ssl_init_common(us);
 }
 
 static int _ustream_ssl_set_peer_cn(struct ustream_ssl *us, const char *name)
@@ -239,5 +282,6 @@ const struct ustream_ssl_ops ustream_ssl_ops = {
 	.context_set_debug = __ustream_ssl_set_debug,
 	.context_free = __ustream_ssl_context_free,
 	.init = _ustream_ssl_init,
+	.init_fd = _ustream_ssl_init_fd,
 	.set_peer_cn = _ustream_ssl_set_peer_cn,
 };

@@ -85,9 +85,32 @@ static int s_ustream_write(void *ctx, const unsigned char *buf, size_t len)
 	return ret;
 }
 
-__hidden void ustream_set_io(struct ustream_ssl_ctx *ctx, void *ssl, struct ustream *conn)
+static int s_fd_read(void *ctx, unsigned char *buf, size_t len)
 {
-	mbedtls_ssl_set_bio(ssl, conn, s_ustream_write, s_ustream_read, NULL);
+	struct uloop_fd *ufd = ctx;
+	mbedtls_net_context net = {
+		.fd = ufd->fd
+	};
+
+	return mbedtls_net_recv(&net, buf, len);
+}
+
+static int s_fd_write(void *ctx, const unsigned char *buf, size_t len)
+{
+	struct uloop_fd *ufd = ctx;
+	mbedtls_net_context net = {
+		.fd = ufd->fd
+	};
+
+	return mbedtls_net_send(&net, buf, len);
+}
+
+__hidden void ustream_set_io(struct ustream_ssl *us)
+{
+	if (us->conn)
+		mbedtls_ssl_set_bio(us->ssl, us->conn, s_ustream_write, s_ustream_read, NULL);
+	else
+		mbedtls_ssl_set_bio(us->ssl, &us->fd, s_fd_write, s_fd_read, NULL);
 }
 
 static int _random(void *ctx, unsigned char *out, size_t len)
@@ -553,8 +576,8 @@ __hidden void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx)
 	return ssl;
 }
 
-__hidden void __ustream_ssl_session_free(void *ssl)
+__hidden void __ustream_ssl_session_free(struct ustream_ssl *us)
 {
-	mbedtls_ssl_free(ssl);
-	free(ssl);
+	mbedtls_ssl_free(us->ssl);
+	free(us->ssl);
 }

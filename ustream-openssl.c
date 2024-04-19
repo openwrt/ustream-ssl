@@ -245,13 +245,18 @@ __hidden void __ustream_ssl_context_free(struct ustream_ssl_ctx *ctx)
 	free(ctx);
 }
 
-void __ustream_ssl_session_free(void *ssl)
+__hidden void __ustream_ssl_session_free(struct ustream_ssl *us)
 {
-	BIO *bio = SSL_get_wbio(ssl);
-	struct bio_ctx *ctx = BIO_get_data(bio);
+	BIO *bio = SSL_get_wbio(us->ssl);
+	struct bio_ctx *ctx;
 
-	SSL_shutdown(ssl);
-	SSL_free(ssl);
+	SSL_shutdown(us->ssl);
+	SSL_free(us->ssl);
+
+	if (!us->conn)
+		return;
+
+	ctx = BIO_get_data(bio);
 	if (ctx) {
 		BIO_meth_free(ctx->meth);
 		free(ctx);

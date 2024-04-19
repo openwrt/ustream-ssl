@@ -65,10 +65,15 @@ static int io_send_cb(SSL* ssl, char *buf, int sz, void *ctx)
 	return s_ustream_write(buf, sz, ctx);
 }
 
-__hidden void ustream_set_io(struct ustream_ssl_ctx *ctx, void *ssl, struct ustream *conn)
+__hidden void ustream_set_io(struct ustream_ssl *us)
 {
-	wolfSSL_SSLSetIORecv(ssl, io_recv_cb);
-	wolfSSL_SSLSetIOSend(ssl, io_send_cb);
-	wolfSSL_SetIOReadCtx(ssl, conn);
-	wolfSSL_SetIOWriteCtx(ssl, conn);
+	if (!us->conn) {
+		wolfSSL_set_fd(us->ssl, us->fd.fd);
+		return;
+	}
+
+	wolfSSL_SSLSetIORecv(us->ssl, io_recv_cb);
+	wolfSSL_SSLSetIOSend(us->ssl, io_send_cb);
+	wolfSSL_SetIOReadCtx(us->ssl, us->conn);
+	wolfSSL_SetIOWriteCtx(us->ssl, us->conn);
 }

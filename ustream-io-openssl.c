@@ -137,8 +137,23 @@ static BIO *ustream_bio_new(struct ustream *s)
 	return bio;
 }
 
-__hidden void ustream_set_io(struct ustream_ssl_ctx *ctx, void *ssl, struct ustream *conn)
+static BIO *fd_bio_new(int fd)
 {
-	BIO *bio = ustream_bio_new(conn);
-	SSL_set_bio(ssl, bio, bio);
+	BIO *bio = BIO_new(BIO_s_socket());
+
+	BIO_set_fd(bio, fd, BIO_NOCLOSE);
+
+	return bio;
+}
+
+__hidden void ustream_set_io(struct ustream_ssl *us)
+{
+	BIO *bio;
+
+	if (us->conn)
+		bio = ustream_bio_new(us->conn);
+	else
+		bio = fd_bio_new(us->fd.fd);
+
+	SSL_set_bio(us->ssl, bio, bio);
 }

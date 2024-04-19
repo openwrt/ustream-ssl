@@ -36,8 +36,6 @@ struct ustream_ssl_ctx {
 	void *debug_cb_priv;
 };
 
-void __ustream_ssl_session_free(void *ssl);
-
 struct bio_ctx {
 	BIO_METHOD *meth;
 	struct ustream *stream;
