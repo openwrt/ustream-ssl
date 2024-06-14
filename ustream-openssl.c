@@ -301,7 +301,11 @@ static void ustream_ssl_verify_cert(struct ustream_ssl *us)
 		return;
 	}
 
+#if defined(HAVE_WOLFSSL)
 	cert = SSL_get_peer_certificate(ssl);
+#else
+	cert = SSL_get1_peer_certificate(ssl);
+#endif
 	if (!cert)
 		return;
 
