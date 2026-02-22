@@ -36,8 +36,14 @@ s_ustream_new(BIO *b)
 static int
 s_ustream_free(BIO *b)
 {
+	struct bio_ctx *ctx;
+
 	if (!b)
 		return 0;
+
+	ctx = (struct bio_ctx *)BIO_get_data(b);
+	if (ctx)
+		free(ctx);
 
 	BIO_set_data(b, NULL);
 	BIO_set_init(b, 0);
@@ -116,22 +122,36 @@ static long s_ustream_ctrl(BIO *b, int cmd, long num, void *ptr)
 	};
 }
 
+static BIO_METHOD *ustream_meth(void)
+{
+	static BIO_METHOD *meth = NULL;
+
+	if (meth)
+		return meth;
+
+	meth = BIO_meth_new(100 | BIO_TYPE_SOURCE_SINK, "ustream");
+	BIO_meth_set_write(meth, s_ustream_write);
+	BIO_meth_set_read(meth, s_ustream_read);
+	BIO_meth_set_puts(meth, s_ustream_puts);
+	BIO_meth_set_gets(meth, s_ustream_gets);
+	BIO_meth_set_ctrl(meth, s_ustream_ctrl);
+	BIO_meth_set_create(meth, s_ustream_new);
+	BIO_meth_set_destroy(meth, s_ustream_free);
+
+	return meth;
+}
+
 static BIO *ustream_bio_new(struct ustream *s)
 {
 	BIO *bio;
-	struct bio_ctx *ctx = calloc(1, sizeof(struct bio_ctx));
+	struct bio_ctx *ctx;
+
+	ctx = calloc(1, sizeof(struct bio_ctx));
+	if (!ctx)
+		return NULL;
 
 	ctx->stream = s;
-	ctx->meth = BIO_meth_new(100 | BIO_TYPE_SOURCE_SINK, "ustream");
-
-	BIO_meth_set_write(ctx->meth, s_ustream_write);
-	BIO_meth_set_read(ctx->meth, s_ustream_read);
-	BIO_meth_set_puts(ctx->meth, s_ustream_puts);
-	BIO_meth_set_gets(ctx->meth, s_ustream_gets);
-	BIO_meth_set_ctrl(ctx->meth, s_ustream_ctrl);
-	BIO_meth_set_create(ctx->meth, s_ustream_new);
-	BIO_meth_set_destroy(ctx->meth, s_ustream_free);
-	bio = BIO_new(ctx->meth);
+	bio = BIO_new(ustream_meth());
 	BIO_set_data(bio, ctx);
 
 	return bio;
@@ -155,5 +175,6 @@ __hidden void ustream_set_io(struct ustream_ssl *us)
 	else
 		bio = fd_bio_new(us->fd.fd);
 
-	SSL_set_bio(us->ssl, bio, bio);
+	if (bio)
+		SSL_set_bio(us->ssl, bio, bio);
 }

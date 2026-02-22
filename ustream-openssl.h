@@ -37,7 +37,6 @@ struct ustream_ssl_ctx {
 };
 
 struct bio_ctx {
-	BIO_METHOD *meth;
 	struct ustream *stream;
 };
 
