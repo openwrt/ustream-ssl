@@ -262,6 +262,12 @@ static void ustream_ssl_fd_cb(struct uloop_fd *fd, unsigned int events)
 	struct ustream_ssl *us = container_of(fd, struct ustream_ssl, fd);
 
 	__ustream_ssl_poll(us);
+
+	if (!(events & ULOOP_WRITE))
+		return;
+
+	if (us->connected && !us->error && us->stream.w.data_bytes)
+		ustream_write_pending(&us->stream);
 }
 
 static void ustream_ssl_stream_init(struct ustream_ssl *us)
