@@ -50,8 +50,9 @@ static inline char *__ustream_ssl_strerror(int error, char *buffer, int len)
 	return ERR_error_string(error, buffer);
 }
 
-static inline void __ustream_ssl_update_peer_cn(struct ustream_ssl *us)
+static inline int __ustream_ssl_update_peer_cn(struct ustream_ssl *us)
 {
+	return 0;
 }
 
 static inline void __ustream_ssl_set_server_name(struct ustream_ssl *us)

@@ -305,8 +305,8 @@ static int _ustream_ssl_init_common(struct ustream_ssl *us)
 	if (us->server_name)
 		__ustream_ssl_set_server_name(us);
 
-	if (us->peer_cn)
-		__ustream_ssl_update_peer_cn(us);
+	if (us->peer_cn && __ustream_ssl_update_peer_cn(us))
+		return -ENOMEM;
 
 	ustream_ssl_check_conn(us);
 
@@ -344,10 +344,16 @@ static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, struc
 
 static int _ustream_ssl_set_peer_cn(struct ustream_ssl *us, const char *name)
 {
+	char *peer_cn = strdup(name);
+
+	if (!peer_cn)
+		return -ENOMEM;
+
 	free(us->peer_cn);
-	us->peer_cn = strdup(name);
+	us->peer_cn = peer_cn;
+
 	if (us->ssl)
-		__ustream_ssl_update_peer_cn(us);
+		return __ustream_ssl_update_peer_cn(us);
 
 	return 0;
 }

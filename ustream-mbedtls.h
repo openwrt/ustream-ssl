@@ -19,6 +19,8 @@
 #ifndef __USTREAM_POLARSSL_H
 #define __USTREAM_POLARSSL_H
 
+#include <errno.h>
+
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/x509.h>
@@ -59,9 +61,12 @@ static inline void __ustream_ssl_set_server_name(struct ustream_ssl *us)
 	mbedtls_ssl_set_hostname(us->ssl, us->server_name);
 }
 
-static inline void __ustream_ssl_update_peer_cn(struct ustream_ssl *us)
+static inline int __ustream_ssl_update_peer_cn(struct ustream_ssl *us)
 {
-	mbedtls_ssl_set_hostname(us->ssl, us->peer_cn);
+	if (mbedtls_ssl_set_hostname(us->ssl, us->peer_cn))
+		return -ENOMEM;
+
+	return 0;
 }
 
 void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx);
