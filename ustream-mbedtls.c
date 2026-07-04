@@ -479,6 +479,13 @@ static void ustream_ssl_verify_cert(struct ustream_ssl *us)
 		return;
 	}
 
+	/* mbedtls_ssl_get_verify_result() also returns 0 when no peer
+	 * certificate was presented or verification was skipped, so require a
+	 * peer certificate like the openssl backend does.
+	 */
+	if (mbedtls_ssl_get_peer_cert(ssl))
+		us->valid_cert = true;
+
 	if (!cn_mismatch)
 		us->valid_cn = true;
 }
