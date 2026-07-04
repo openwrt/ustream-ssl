@@ -123,7 +123,7 @@ static int _random(void *ctx, unsigned char *out, size_t len)
 
 	if (!f)
 		f = fopen("/dev/urandom", "r");
-	if (fread(out, len, 1, f) != 1)
+	if (!f || fread(out, len, 1, f) != 1)
 		return MBEDTLS_ERR_ENTROPY_SOURCE_FAILED;
 #endif
 
@@ -421,7 +421,8 @@ __ustream_ssl_save_session(struct ustream_ssl *us)
 
 	mbedtls_ssl_session_save(&sess, NULL, 0, &ctx->session_data_len);
 	ctx->session_data = malloc(ctx->session_data_len);
-	if (mbedtls_ssl_session_save(&sess, ctx->session_data, ctx->session_data_len,
+	if (!ctx->session_data ||
+	    mbedtls_ssl_session_save(&sess, ctx->session_data, ctx->session_data_len,
 				     &ctx->session_data_len))
 		ctx->session_data_len = 0;
 	mbedtls_ssl_session_free(&sess);
