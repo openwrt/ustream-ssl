@@ -149,6 +149,20 @@ __ustream_ssl_context_new(bool server)
 
 	SSL_CTX_set_options(c, SSL_OP_NO_COMPRESSION | SSL_OP_SINGLE_ECDH_USE |
 			       SSL_OP_CIPHER_SERVER_PREFERENCE);
+
+	/* Blocked writes are buffered by the ustream core and retried from the
+	 * buffers instead of the original caller address. Limit the write
+	 * state pending inside the SSL library to a single record and allow
+	 * the retry to come from a different address.
+	 */
+#ifdef SSL_MODE_ENABLE_PARTIAL_WRITE
+# ifdef SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
+	SSL_CTX_set_mode(c, SSL_MODE_ENABLE_PARTIAL_WRITE |
+			    SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+# else
+	SSL_CTX_set_mode(c, SSL_MODE_ENABLE_PARTIAL_WRITE);
+# endif
+#endif
 #if defined(SSL_CTX_set_ecdh_auto) && OPENSSL_VERSION_NUMBER < 0x10100000L
 	SSL_CTX_set_ecdh_auto(c, 1);
 #elif OPENSSL_VERSION_NUMBER >= 0x10101000L

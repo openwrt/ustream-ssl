@@ -39,6 +39,7 @@ struct ustream_ssl {
 	const char *server_name;
 
 	int error;
+	int pending_write;
 	bool connected;
 	bool server;
 

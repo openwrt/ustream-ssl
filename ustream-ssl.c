@@ -166,6 +166,7 @@ static void ustream_ssl_notify_state(struct ustream *s)
 static int ustream_ssl_write(struct ustream *s, const char *buf, int len, bool more)
 {
 	struct ustream_ssl *us = container_of(s, struct ustream_ssl, stream);
+	int ret;
 
 	if (!us->connected || us->error)
 		return 0;
@@ -173,7 +174,27 @@ static int ustream_ssl_write(struct ustream *s, const char *buf, int len, bool m
 	if (us->conn && us->conn->w.data_bytes)
 		return 0;
 
-	return __ustream_ssl_write(us, buf, len);
+	/* Data that the SSL library did not accept is buffered by the ustream
+	 * core and retried from the buffers, i.e. with a different address and
+	 * typically a different length. SSL write retry semantics require the
+	 * retry to cover exactly the data of the failed call: with a shorter
+	 * retry OpenSSL fails ("bad write retry"), while mbedTLS reports the
+	 * retried length as written even though only the previously packaged
+	 * record is sent, corrupting the stream. Cap the retry length to the
+	 * length of the failed call to keep both libraries consistent.
+	 */
+	if (us->pending_write > 0 && len > us->pending_write)
+		len = us->pending_write;
+
+	ret = __ustream_ssl_write(us, buf, len);
+	if (ret < 0) {
+		us->pending_write = 0;
+		return ret;
+	}
+
+	us->pending_write = len - ret;
+
+	return ret;
 }
 
 static void ustream_ssl_set_read_blocked(struct ustream *s)
@@ -215,6 +236,7 @@ static void ustream_ssl_free(struct ustream *s)
 	us->peer_cn = NULL;
 	us->connected = false;
 	us->error = false;
+	us->pending_write = 0;
 	us->valid_cert = false;
 	us->valid_cn = false;
 }
@@ -290,6 +312,14 @@ static int _ustream_ssl_init_fd(struct ustream_ssl *us, int fd, struct ustream_s
 	us->server = server;
 	us->ctx = ctx;
 	us->fd.fd = fd;
+
+	/* Writes can block on the socket, so blocked data is buffered and
+	 * retried one buffer chunk at a time. The first retried chunk must
+	 * cover the record pending inside the SSL library, so it has to hold
+	 * at least the maximum TLS plaintext fragment size.
+	 */
+	if (!us->stream.w.buffer_len)
+		us->stream.w.buffer_len = 16384;
 
 	return _ustream_ssl_init_common(us);
 }
