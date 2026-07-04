@@ -395,7 +395,7 @@ __hidden int __ustream_ssl_write(struct ustream_ssl *us, const char *buf, int le
 
 	if (ret < 0) {
 		int err = SSL_get_error(ssl, ret);
-		if (err == SSL_ERROR_WANT_WRITE)
+		if (err == SSL_ERROR_WANT_WRITE || err == SSL_ERROR_WANT_READ)
 			return 0;
 
 		ustream_ssl_error(us, err);
@@ -415,7 +415,7 @@ __hidden int __ustream_ssl_read(struct ustream_ssl *us, char *buf, int len)
 
 	if (ret < 0) {
 		ret = SSL_get_error(us->ssl, ret);
-		if (ret == SSL_ERROR_WANT_READ)
+		if (ret == SSL_ERROR_WANT_READ || ret == SSL_ERROR_WANT_WRITE)
 			return U_SSL_PENDING;
 
 		ustream_ssl_error(us, ret);
