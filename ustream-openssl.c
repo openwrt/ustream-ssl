@@ -136,6 +136,10 @@ __ustream_ssl_context_new(bool server)
 		return NULL;
 
 	ctx = calloc(1, sizeof(*ctx));
+	if (!ctx) {
+		SSL_CTX_free(c);
+		return NULL;
+	}
 	ctx->ssl = c;
 
 #if defined(HAVE_WOLFSSL)

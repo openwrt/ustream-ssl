@@ -130,6 +130,9 @@ static BIO_METHOD *ustream_meth(void)
 		return meth;
 
 	meth = BIO_meth_new(100 | BIO_TYPE_SOURCE_SINK, "ustream");
+	if (!meth)
+		return NULL;
+
 	BIO_meth_set_write(meth, s_ustream_write);
 	BIO_meth_set_read(meth, s_ustream_read);
 	BIO_meth_set_puts(meth, s_ustream_puts);
@@ -143,15 +146,24 @@ static BIO_METHOD *ustream_meth(void)
 
 static BIO *ustream_bio_new(struct ustream *s)
 {
-	BIO *bio;
+	BIO_METHOD *meth = ustream_meth();
 	struct bio_ctx *ctx;
+	BIO *bio;
+
+	if (!meth)
+		return NULL;
 
 	ctx = calloc(1, sizeof(struct bio_ctx));
 	if (!ctx)
 		return NULL;
 
 	ctx->stream = s;
-	bio = BIO_new(ustream_meth());
+	bio = BIO_new(meth);
+	if (!bio) {
+		free(ctx);
+		return NULL;
+	}
+
 	BIO_set_data(bio, ctx);
 
 	return bio;
@@ -160,6 +172,9 @@ static BIO *ustream_bio_new(struct ustream *s)
 static BIO *fd_bio_new(int fd)
 {
 	BIO *bio = BIO_new(BIO_s_socket());
+
+	if (!bio)
+		return NULL;
 
 	BIO_set_fd(bio, fd, BIO_NOCLOSE);
 
