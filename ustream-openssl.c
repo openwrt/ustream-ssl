@@ -16,6 +16,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <limits.h>
 #include <string.h>
 #include <ctype.h>
 #include <arpa/inet.h>
@@ -272,7 +273,18 @@ __hidden void __ustream_ssl_session_free(struct ustream_ssl *us)
 
 static void ustream_ssl_error(struct ustream_ssl *us, int ret)
 {
-	us->error = ret;
+	unsigned long err = ERR_peek_error();
+
+	/* The error member is passed to ERR_error_string(), which can only
+	 * decode packed error queue codes, not SSL_get_error() class codes.
+	 * Keep the class code when the queue is empty or the code does not
+	 * survive the round trip through the int member.
+	 */
+	if (err && err <= INT_MAX)
+		us->error = err;
+	else
+		us->error = ret;
+
 	uloop_timeout_set(&us->error_timer, 0);
 }
 
