@@ -40,7 +40,7 @@ static void ustream_ssl_check_conn(struct ustream_ssl *us)
 	struct ustream_free_guard guard;
 	bool connected;
 
-	if (us->connected || us->error)
+	if (us->connected || us->error || us->stream.eof)
 		return;
 
 	/* the handshake may invoke notify_verify_error */
