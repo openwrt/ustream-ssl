@@ -586,6 +586,7 @@ __hidden void *__ustream_ssl_session_new(struct ustream_ssl_ctx *ctx)
 
 __hidden void __ustream_ssl_session_free(struct ustream_ssl *us)
 {
+	mbedtls_ssl_close_notify(us->ssl);
 	mbedtls_ssl_free(us->ssl);
 	free(us->ssl);
 }
