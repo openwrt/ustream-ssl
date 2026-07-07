@@ -504,6 +504,8 @@ __hidden void __ustream_ssl_set_debug(struct ustream_ssl_ctx *ctx, int level,
 #ifndef WOLFSSL_SSL_H
 	if (!ctx->debug_bio)
 		ctx->debug_bio = BIO_new(BIO_s_mem());
+	if (!ctx->debug_bio)
+		return;
 
 	ctx->debug_cb = cb;
 	ctx->debug_cb_priv = cb_priv;
