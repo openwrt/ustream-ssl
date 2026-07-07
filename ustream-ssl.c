@@ -332,6 +332,8 @@ static int _ustream_ssl_init_fd(struct ustream_ssl *us, int fd, struct ustream_s
 
 static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, struct ustream_ssl_ctx *ctx, bool server)
 {
+	int ret;
+
 	us->server = server;
 	us->ctx = ctx;
 
@@ -339,7 +341,13 @@ static int _ustream_ssl_init(struct ustream_ssl *us, struct ustream *conn, struc
 	conn->r.max_buffers = 4;
 	conn->next = &us->stream;
 
-	return _ustream_ssl_init_common(us);
+	ret = _ustream_ssl_init_common(us);
+	if (ret) {
+		conn->next = NULL;
+		us->conn = NULL;
+	}
+
+	return ret;
 }
 
 static int _ustream_ssl_set_peer_cn(struct ustream_ssl *us, const char *name)
