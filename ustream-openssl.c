@@ -18,6 +18,7 @@
 
 #include <string.h>
 #include <ctype.h>
+#include <arpa/inet.h>
 #include "ustream-ssl.h"
 #include "ustream-internal.h"
 
@@ -275,6 +276,16 @@ static void ustream_ssl_error(struct ustream_ssl *us, int ret)
 	uloop_timeout_set(&us->error_timer, 0);
 }
 
+#ifndef WOLFSSL_OPENSSL_H_
+static bool peer_cn_is_ip_addr(const char *peer_cn)
+{
+	struct in6_addr addr;
+
+	return inet_pton(AF_INET, peer_cn, &addr) == 1 ||
+	       inet_pton(AF_INET6, peer_cn, &addr) == 1;
+}
+#endif
+
 static bool ustream_ssl_verify_cn(struct ustream_ssl *us, X509 *cert)
 {
 	int ret;
@@ -283,7 +294,10 @@ static bool ustream_ssl_verify_cn(struct ustream_ssl *us, X509 *cert)
 		return false;
 
 # ifndef WOLFSSL_OPENSSL_H_
-	ret = X509_check_host(cert, us->peer_cn, 0, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS, NULL);
+	if (peer_cn_is_ip_addr(us->peer_cn))
+		ret = X509_check_ip_asc(cert, us->peer_cn, 0);
+	else
+		ret = X509_check_host(cert, us->peer_cn, 0, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS, NULL);
 # else
 	ret = wolfSSL_X509_check_host(cert, us->peer_cn, 0, 0, NULL);
 # endif
