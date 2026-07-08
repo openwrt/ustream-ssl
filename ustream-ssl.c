@@ -36,56 +36,81 @@ static void ustream_ssl_error_cb(struct uloop_timeout *t)
 
 static void ustream_ssl_check_conn(struct ustream_ssl *us)
 {
+	struct ustream *s = &us->stream;
+	struct ustream_free_guard guard;
+	bool connected;
+
 	if (us->connected || us->error)
 		return;
 
-	if (__ustream_ssl_connect(us) == U_SSL_OK) {
+	/* the handshake may invoke notify_verify_error */
+	ustream_free_guard_set(s, &guard);
+	connected = __ustream_ssl_connect(us) == U_SSL_OK;
+	if (ustream_free_guard_check(s, &guard))
+		return;
 
-		/* __ustream_ssl_connect() will also return U_SSL_OK when certificate
-		 * verification failed!
-		 *
-		 * Applications may register a custom .notify_verify_error callback in the
-		 * struct ustream_ssl which is called upon verification failures, but there
-		 * is no straight forward way for the callback to terminate the connection
-		 * initiation right away, e.g. through a true or false return value.
-		 *
-		 * Instead, existing implementations appear to set .eof field of the underlying
-		 * ustream in the hope that this inhibits further operations on the stream.
-		 *
-		 * Declare this informal behaviour "official" and check for the state of the
-		 * .eof member after __ustream_ssl_connect() returned, and do not write the
-		 * pending data if it is set to true.
-		 */
+	if (!connected)
+		return;
 
-		if (us->stream.eof)
+	/* __ustream_ssl_connect() will also return U_SSL_OK when certificate
+	 * verification failed!
+	 *
+	 * Applications may register a custom .notify_verify_error callback in the
+	 * struct ustream_ssl which is called upon verification failures, but there
+	 * is no straight forward way for the callback to terminate the connection
+	 * initiation right away, e.g. through a true or false return value.
+	 *
+	 * Instead, existing implementations appear to set .eof field of the underlying
+	 * ustream in the hope that this inhibits further operations on the stream.
+	 *
+	 * Declare this informal behaviour "official" and check for the state of the
+	 * .eof member after __ustream_ssl_connect() returned, and do not write the
+	 * pending data if it is set to true.
+	 */
+
+	if (us->stream.eof)
+		return;
+
+	us->connected = true;
+	if (us->notify_connected) {
+		ustream_free_guard_set(s, &guard);
+		us->notify_connected(us);
+		if (ustream_free_guard_check(s, &guard))
 			return;
-
-		us->connected = true;
-		if (us->notify_connected)
-			us->notify_connected(us);
-		ustream_write_pending(&us->stream);
 	}
+
+	ustream_write_pending(s);
 }
 
 static bool __ustream_ssl_poll(struct ustream_ssl *us)
 {
+	struct ustream *s = &us->stream;
+	struct ustream_free_guard guard;
 	char *buf;
 	int len, ret;
 	bool more = false;
 
+	ustream_free_guard_set(s, &guard);
 	ustream_ssl_check_conn(us);
+	if (ustream_free_guard_check(s, &guard))
+		return false;
+
 	if (!us->connected || us->error)
 		return false;
 
 	do {
-		buf = ustream_reserve(&us->stream, 1, &len);
+		buf = ustream_reserve(s, 1, &len);
 		if (!len)
 			break;
 
 		ret = __ustream_ssl_read(us, buf, len);
 		if (ret == U_SSL_PENDING) {
-			if (us->conn)
+			if (us->conn) {
+				ustream_free_guard_set(s, &guard);
 				ustream_poll(us->conn);
+				if (ustream_free_guard_check(s, &guard))
+					return more;
+			}
 			ret = __ustream_ssl_read(us, buf, len);
 		}
 
@@ -95,11 +120,15 @@ static bool __ustream_ssl_poll(struct ustream_ssl *us)
 		case U_SSL_ERROR:
 			return false;
 		case 0:
-			us->stream.eof = true;
-			ustream_state_change(&us->stream);
+			s->eof = true;
+			ustream_state_change(s);
 			return false;
 		default:
-			ustream_fill_read(&us->stream, ret);
+			ustream_free_guard_set(s, &guard);
+			ustream_fill_read(s, ret);
+			if (ustream_free_guard_check(s, &guard))
+				return more;
+
 			more = true;
 			continue;
 		}
@@ -118,8 +147,13 @@ static void ustream_ssl_notify_read(struct ustream *s, int bytes)
 static void ustream_ssl_notify_write(struct ustream *s, int bytes)
 {
 	struct ustream_ssl *us = container_of(s->next, struct ustream_ssl, stream);
+	struct ustream_free_guard guard;
 
+	ustream_free_guard_set(&us->stream, &guard);
 	ustream_ssl_check_conn(us);
+	if (ustream_free_guard_check(&us->stream, &guard))
+		return;
+
 	ustream_write_pending(s->next);
 }
 
@@ -188,10 +222,15 @@ static void ustream_ssl_free(struct ustream *s)
 static bool ustream_ssl_poll(struct ustream *s)
 {
 	struct ustream_ssl *us = container_of(s, struct ustream_ssl, stream);
+	struct ustream_free_guard guard;
 	bool fd_poll = false;
 
-	if (us->conn)
+	if (us->conn) {
+		ustream_free_guard_set(s, &guard);
 		fd_poll = ustream_poll(us->conn);
+		if (ustream_free_guard_check(s, &guard))
+			return fd_poll;
+	}
 
 	return __ustream_ssl_poll(us) || fd_poll;
 }

@@ -27,6 +27,7 @@ struct ustream_ssl {
 	struct uloop_timeout error_timer;
 	struct uloop_fd fd;
 
+	/* freeing the stream from these callbacks is allowed */
 	void (*notify_connected)(struct ustream_ssl *us);
 	void (*notify_error)(struct ustream_ssl *us, int error, const char *str);
 	void (*notify_verify_error)(struct ustream_ssl *us, int error, const char *str);
