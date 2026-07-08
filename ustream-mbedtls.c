@@ -28,6 +28,34 @@
 #include <psa/crypto.h>
 #include <mbedtls/debug.h>
 
+#if (MBEDTLS_VERSION_NUMBER >= 0x03000000)
+
+static void ssl_conf_min_version_tls12(mbedtls_ssl_config *conf)
+{
+	mbedtls_ssl_conf_min_tls_version(conf, MBEDTLS_SSL_VERSION_TLS1_2);
+}
+
+static void ssl_conf_max_version_tls12(mbedtls_ssl_config *conf)
+{
+	mbedtls_ssl_conf_max_tls_version(conf, MBEDTLS_SSL_VERSION_TLS1_2);
+}
+
+#else
+
+static void ssl_conf_min_version_tls12(mbedtls_ssl_config *conf)
+{
+	mbedtls_ssl_conf_min_version(conf, MBEDTLS_SSL_MAJOR_VERSION_3,
+				     MBEDTLS_SSL_MINOR_VERSION_3);
+}
+
+static void ssl_conf_max_version_tls12(mbedtls_ssl_config *conf)
+{
+	mbedtls_ssl_conf_max_version(conf, MBEDTLS_SSL_MAJOR_VERSION_3,
+				     MBEDTLS_SSL_MINOR_VERSION_3);
+}
+
+#endif
+
 static void debug_cb(void *ctx_p, int level,
                      const char *file, int line,
                      const char *str)
@@ -234,8 +262,7 @@ __ustream_ssl_context_new(bool server)
 	if (server) {
 		mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_NONE);
 		mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites_server);
-		mbedtls_ssl_conf_min_version(conf, MBEDTLS_SSL_MAJOR_VERSION_3,
-					     MBEDTLS_SSL_MINOR_VERSION_3);
+		ssl_conf_min_version_tls12(conf);
 	} else {
 		mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_OPTIONAL);
 		mbedtls_ssl_conf_ciphersuites(conf, default_ciphersuites_client);
@@ -375,8 +402,7 @@ __hidden int __ustream_ssl_set_require_validation(struct ustream_ssl_ctx *ctx, b
 
 	/* force TLS 1.2 when not requiring validation for now */
 	if (!require && !ctx->server)
-		mbedtls_ssl_conf_max_version(&ctx->conf, MBEDTLS_SSL_MAJOR_VERSION_3,
-					     MBEDTLS_SSL_MINOR_VERSION_3);
+		ssl_conf_max_version_tls12(&ctx->conf);
 	mbedtls_ssl_conf_authmode(&ctx->conf, mode);
 
 	return 0;
