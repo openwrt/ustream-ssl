@@ -24,10 +24,12 @@
 #include <mbedtls/net_sockets.h>
 #include <mbedtls/ssl.h>
 #include <mbedtls/x509.h>
-#include <mbedtls/rsa.h>
 #include <mbedtls/error.h>
 #include <mbedtls/version.h>
+
+#if MBEDTLS_VERSION_MAJOR < 4
 #include <mbedtls/entropy.h>
+#endif
 
 #if defined(MBEDTLS_SSL_CACHE_C)
 #include <mbedtls/ssl_cache.h>

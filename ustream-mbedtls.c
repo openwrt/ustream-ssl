@@ -141,6 +141,8 @@ __hidden void ustream_set_io(struct ustream_ssl *us)
 		mbedtls_ssl_set_bio(us->ssl, &us->fd, s_fd_write, s_fd_read, NULL);
 }
 
+/* Mbed TLS 4.x uses the PSA random generator internally */
+#if MBEDTLS_VERSION_MAJOR < 4
 static int _random(void *ctx, unsigned char *out, size_t len)
 {
 #ifdef linux
@@ -157,6 +159,7 @@ static int _random(void *ctx, unsigned char *out, size_t len)
 
 	return 0;
 }
+#endif
 
 #define AES_GCM_CIPHERS(v)				\
 	MBEDTLS_TLS_##v##_WITH_AES_128_GCM_SHA256,	\
@@ -185,7 +188,10 @@ static const int default_ciphersuites_server[] =
 	MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 	AES_GCM_CIPHERS(ECDHE_RSA),
 	AES_CBC_CIPHERS(ECDHE_RSA),
+/* Removed in Mbed TLS 4.0.0 */
+#if MBEDTLS_VERSION_MAJOR < 4
 	AES_CIPHERS(RSA),
+#endif
 	0
 };
 
@@ -203,16 +209,25 @@ static const int default_ciphersuites_client[] =
 	AES_GCM_CIPHERS(ECDHE_ECDSA),
 	MBEDTLS_TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 	AES_GCM_CIPHERS(ECDHE_RSA),
+/* Removed in Mbed TLS 4.0.0 */
+#if MBEDTLS_VERSION_MAJOR < 4
 	MBEDTLS_TLS_DHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
 	AES_GCM_CIPHERS(DHE_RSA),
+#endif
 	AES_CBC_CIPHERS(ECDHE_ECDSA),
 	AES_CBC_CIPHERS(ECDHE_RSA),
+/* Removed in Mbed TLS 4.0.0 */
+#if MBEDTLS_VERSION_MAJOR < 4
 	AES_CBC_CIPHERS(DHE_RSA),
+#endif
 /* Removed in Mbed TLS 3.0.0 */
 #ifdef MBEDTLS_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA
 	MBEDTLS_TLS_DHE_RSA_WITH_3DES_EDE_CBC_SHA,
 #endif
+/* Removed in Mbed TLS 4.0.0 */
+#if MBEDTLS_VERSION_MAJOR < 4
 	AES_CIPHERS(RSA),
+#endif
 /* Removed in Mbed TLS 3.0.0 */
 #ifdef MBEDTLS_TLS_RSA_WITH_3DES_EDE_CBC_SHA
 	MBEDTLS_TLS_RSA_WITH_3DES_EDE_CBC_SHA,
@@ -257,7 +272,9 @@ __ustream_ssl_context_new(bool server)
 
 	mbedtls_ssl_config_defaults(conf, ep, MBEDTLS_SSL_TRANSPORT_STREAM,
 				    MBEDTLS_SSL_PRESET_DEFAULT);
+#if MBEDTLS_VERSION_MAJOR < 4
 	mbedtls_ssl_conf_rng(conf, _random, NULL);
+#endif
 
 	if (server) {
 		mbedtls_ssl_conf_authmode(conf, MBEDTLS_SSL_VERIFY_NONE);
@@ -281,7 +298,8 @@ static void ustream_ssl_update_own_cert(struct ustream_ssl_ctx *ctx)
 	if (!ctx->cert.version)
 		return;
 
-	if (mbedtls_pk_get_type(&ctx->key) == MBEDTLS_PK_NONE)
+	/* mbedtls_pk_get_type() is private in Mbed TLS 4.x */
+	if (mbedtls_pk_get_bitlen(&ctx->key) == 0)
 		return;
 
 	mbedtls_ssl_conf_own_cert(&ctx->conf, &ctx->cert, &ctx->key);
@@ -316,7 +334,9 @@ __hidden int __ustream_ssl_set_key_file(struct ustream_ssl_ctx *ctx, const char 
 {
 	int ret;
 
-#if (MBEDTLS_VERSION_NUMBER >= 0x03000000)
+#if MBEDTLS_VERSION_MAJOR >= 4
+	ret = mbedtls_pk_parse_keyfile(&ctx->key, file, NULL);
+#elif (MBEDTLS_VERSION_NUMBER >= 0x03000000)
 	ret = mbedtls_pk_parse_keyfile(&ctx->key, file, NULL, _random, NULL);
 #else
 	ret = mbedtls_pk_parse_keyfile(&ctx->key, file, NULL);
@@ -489,6 +509,12 @@ static void ustream_ssl_verify_cert(struct ustream_ssl *us)
 	r = mbedtls_ssl_get_verify_result(ssl);
 	cn_mismatch = r & MBEDTLS_X509_BADCERT_CN_MISMATCH;
 	r &= ~MBEDTLS_X509_BADCERT_CN_MISMATCH;
+
+	/* Verification was disabled (MBEDTLS_SSL_VERIFY_NONE), which is not an
+	 * error. Mbed TLS 4.x also reports it with this flag for clients, while
+	 * older versions return 0.
+	 */
+	r &= ~MBEDTLS_X509_BADCERT_SKIP_VERIFY;
 
 	if (r & MBEDTLS_X509_BADCERT_EXPIRED)
 		msg = "certificate has expired";
